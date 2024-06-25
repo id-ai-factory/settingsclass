@@ -2,7 +2,8 @@
 
 logs/
 tests/output
-
+web2.ini
+webconfig.ini
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
