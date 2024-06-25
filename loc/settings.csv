@@ -1,0 +1,30 @@
+id,ja,en
+
+#ログメッセージ/logging messages
+initing_settings_1,設定ファイルが存在しないため、以下のパスに初期化します：{},"Settings file not found. Initializing at {}"
+loading_settings_from_1,以下のパスから設定を読み込む中：{},"Loading settings from '{}'"
+using_key_var_from_env_1,後述の環境変数を適用します：{},The following environmental variable will be applied: {}
+unencrypted_data_found_1,"暗号化されていないデータ（{}）が見つかりました。ファイルを暗号化して上書きします。","Unencrypted data found ({}). Encrypting and overwriting the current file."
+
+#エラーメッセージ/error messages
+
+file_is_folder_1,"指定されたファイルパス【{}】はフォルダーです。","The path was expected to point to a file, but points to a folder. Path: {}"
+invalid_type_4,"設定ファイルの【{}】項目の【{}】パラメーターを{}にキャストできませんでした（値：{}）","Could not convert <{3}> to type {2} for parameter <{1}> in section <{0}>"
+missing_config_section_1,コンフィグファイルに【{}】の項目が見つかりませんでした。,"The config file is missing the section <{}>"
+config_param_missing_2,コンフィグファイルの【{0}】項目に【{1}】が見つかりませんでした。,"Config file missing parameter <{1}> in section <{0}>"
+extra_config_sections_1,コンフィグファイルに予期されていない項目は使用できません：{},"The unexpected sections in the config file will not be used: {}"
+extra_config_parameter_2,コンフィグファイルの【{}】項目に予期されていない【{}】のパラメーターが見つかりました。,"Unexpected parameter {1} found in section {0} of the settings file"
+param_type_is_string_but_looks_x_4,"設定ファイルの【{}】項目【{}】の【{}】値を持っているパラメーターは文字列ですが、{}に見えます。","The parameter <{}> in section <{}> with value {} of the settings file is a string but looks like a {}"
+cannot_convert_to_bool_1,"【{}】の値を真偽値に変換できませんでした。","Could not convert the value of <{}> to a boolean."
+unexpected_class_found_2,"予期されない型が見つかりました:{}{}。GenericAliasを継承するクラスは_RandomTypeまたは_TypeWrapperも継承する必要があります。","Unexpected type found: {}/{}. Classes inheriting GenericAlias should also inherit _RandomType or _TypeWrapper."
+param_count_mismatch_2,'引数の数と翻訳キーで指定した数字は一致していません。箇所：{}の{}行目',"Param count doesnt match key expectation (called from {} line {})"
+translation_key_does_not_exist_3,"アクセスされているキーの「{}」が存在しません。箇所：{}の{}行目",The translation key '{}' does not exist in file {} line {}
+unused_key_found_1,不使用の翻訳キーを発見しました：{},"Unused translation key found: {}"
+invalid_encrpytion_key_type_1,暗号化キーの型が不正です：{}。使用可能なタイプは【None】・【str】・【Callable】,"{} has been provided but only types str, None and Callable can be used as encryption keys"
+keyfile_location_unaccessable_1,キーファイルの場所がアクセスできません。文字列か関数型で指定してください：{},"The keyfile location is unaccessable. Please provide a string or callable key instead: {}"
+could_not_decode_string_1,ファイルのデコードに失敗しました。ファイルが壊れている可能性があります：{},"Failed to decode the file. The file may be corrupted: {}"
+function_can_only_be_called_on_randomtype_1,"この関数は_RandomTypeのみで呼び出すことができます：{}","This function can only be called on _RandomType: {}"
+
+#UT
+lower_third_not_reached_during_ddcsst,"RandomSettingTypeのテスト、分布確認の中で下の1割の値は入っていませんでした。","The lower third values have not been generated during the unit test of RandomType for setting generation"
+higher_third_not_reached_during_ddcsst,"RandomSettingTypeのテスト、分布確認の中で上の1割の値は入っていませんでした。","The higher third values have not been generated during the unit test of RandomType for setting generation"

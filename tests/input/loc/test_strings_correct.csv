@@ -1,0 +1,7 @@
+id,ja,en
+
+# 値差し込み絵テスト
+ut_parameterless,"零の引数","No params"
+ut_one_param_1,"一つのパラメーターは{}","The single parameter is {}"
+ut_three_param_3,"{}・{}と{}は三つのパラメーター","The three parameters are {}, {} and {}"
+ut_ordered_params_3,"{}のため{}と{}","{1} and {2} caused {0}"

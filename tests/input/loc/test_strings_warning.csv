@@ -1,0 +1,8 @@
+id,ja,en
+
+# フォーマットミスの
+ut_not_enough_params_2,"ない","NONE"
+ut_too_many_params,"{}, {}","{} + {}"
+ut_too_many_params_counted_1,"{}, {}","{} + {}"
+ut_ja_bracket_1,"｛｝","{}"
+
