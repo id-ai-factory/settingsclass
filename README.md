@@ -1,5 +1,6 @@
 # settingsclass
 A decorator for classes to be used as settings objects based on the dataclass approach.
+[![Python Tests](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml/badge.svg)](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml)  
 
 [日本語の説明](REAMDE_JA.md)
 
