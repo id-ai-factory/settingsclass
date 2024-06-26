@@ -23,7 +23,7 @@ from threading import Lock
 
 from loguru import logger
 
-from localizer import tr, set_language
+from .localizer import tr, set_language
 
 
 # %%
@@ -267,7 +267,7 @@ def _is_hidden_variable(obj, member_name) -> bool:
     return member_name[:1] == "_" or isinstance(getattr(obj, member_name), MethodType)
 
 
-def is_settingsclass_instnace(obj):
+def is_settingsclass_instance(obj):
     raise NotImplementedError("まだです")
 
 
@@ -721,33 +721,34 @@ def settingsclass(
 # TODO Having the options for JSON etc. would be nice
 
 
-@settingsclass  # (encryption_key="123456789")
-class _Settings:
-    """設定ファイルを初期化するときに使われる値。ロードするときにタイプヒントを確認する。
-    RandomString・RandomInt・RandomFloatの初期値値は無視される"""
-
-    # file_path = '<NOT_SET>'
-
-    class program:
-        lang: str = "ja"
-        log_level: str = "debug"
-        colored_console_output: Hidden[bool] = True  # ログをカラー表示するか
-        machine_id: RandomString[5] = ""
-        auto_update_model: bool = False
-        rfph: RandomFloat[0, 2**16] = 1.2
-        seed: Encrypted[RandomFloat[0, 2**16]] = 1.2
-        api_id: RandomInt[1000, 9999] = 0
-
-    class gpt:
-        api_key: Encrypted[str] = ""
-        backup_pin: Encrypted[int] = -1
-        model: str = "gpt-3.5-turbo"  # GPTモデルの識別文字列
-        temperature: Hidden[float] = 5
-        timeout: int = 300
-
-
 if __name__ == "__main__":
     # conf = _Settings(f"conf/{RandomString(5)}.ini")
+
+    # Only for quick testing during development
+    @settingsclass  # (encryption_key="123456789")
+    class _Settings:
+        """設定ファイルを初期化するときに使われる値。ロードするときにタイプヒントを確認する。
+        RandomString・RandomInt・RandomFloatの初期値値は無視される"""
+
+        # file_path = '<NOT_SET>'
+
+        class program:
+            lang: str = "ja"
+            log_level: str = "debug"
+            colored_console_output: Hidden[bool] = True  # ログをカラー表示するか
+            machine_id: RandomString[5] = ""
+            auto_update_model: bool = False
+            rfph: RandomFloat[0, 2**16] = 1.2
+            seed: Encrypted[RandomFloat[0, 2**16]] = 1.2
+            api_id: RandomInt[1000, 9999] = 0
+
+        class gpt:
+            api_key: Encrypted[str] = ""
+            backup_pin: Encrypted[int] = -1
+            model: str = "gpt-3.5-turbo"  # GPTモデルの識別文字列
+            temperature: Hidden[float] = 5
+            timeout: int = 300
+
     conf = _Settings("cx.ini")
     print(conf)
 

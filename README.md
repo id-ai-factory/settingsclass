@@ -1,18 +1,21 @@
-# settingsclass
-A decorator for classes to be used as settings objects based on the dataclass approach.
 [![Python Tests](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml/badge.svg)](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml)  
+
+# settingsclass  
+A decorator for classes to be used as settings objects based on the [dataclass](https://docs.python.org/3/library/dataclasses.html) approach.  
 
 [日本語の説明](REAMDE_JA.md)
 
-# Core idea
-An easy-to-use, but feature rich solution to storing settings.   
-Defining the class is similar to dataclass, with a few differences.
+---
 
-A more complex example with the full feature list can be found at the end.  
+# Core idea
+An easy-to-use, but feature-rich solution to storing settings.   
+Definition and use is similar to [dataclass](https://docs.python.org/3/library/dataclasses.html), but includes synchronization with an external ini file.
+
+
 ### Simple use-case example:
 
 ```
-from settings import settingsclass, Hidden, Encrypted, RandomString, RandomInt
+from settingsclass import settingsclass, Hidden, Encrypted, RandomString, RandomInt
 
 @settingsclass
 class WebConfig:
@@ -34,8 +37,9 @@ def foo(x: int):  # Placeholder for user function
 
 foo(config.agent.seed)  # the variable is guaranteed to be in int
 config.agent.seed = 11 # Values can be set as usual, values are not shared across instances
+``` 
 
-```
+*See full feature showcase [here](demo.py)*
 
 # Why not an existing solution?
 
@@ -116,28 +120,30 @@ Only standard library dependedncies
 
 ## Decorator
 
-`@dataclass(env_prefix: str = "", common_encryption_key: type[str | Callable[[Any], str] | None] = None, salt: bytes = None)`
+`@settingsclass(env_prefix: str = "", common_encryption_key: type[str | Callable[[Any], str] | None] = None, salt: bytes = None)`
 
 Use cases: 
-1. No parameters  
+1. No arguments  
 The contents of the class are saved under "congfig.ini" in the current directory. Encryption keys are saved in the library's local folder. 
 ```
-@dataclass
+@settingsclass
 class Settings:
     [...]
 ```
+--- 
 2. Specific arguments  
 Without specifying a parameter all instantiations will look at the same webconfig.ini file. **If a folder `my_folder` is specified, the class will look for `my_folder/config.ini`**  
 Specifying an encryption key will mean that all subsequent instantiations of the class will use that key unless otherwise specified.
 Since the `_salt` parameter is specified, copying the file over to an other machine and using "my_encrpytion_key" will result in a correctly read settings file.
 ```
-@dataclass(file_path = "webconfig.ini", common_encryption_key = "my_encryption_key", _salt=b'\x87\x14~\x88\xf8\xfd\xb3&\xe2\xd4\xd9|@\xfb\x80\x9e')
+@settingsclass(file_path = "webconfig.ini", common_encryption_key = "my_encryption_key", _salt=b'\x87\x14~\x88\xf8\xfd\xb3&\xe2\xd4\xd9|@\xfb\x80\x9e')
 class Settings:
     [...]
 ```
-3. Ram only settings/user custom file type
+--- 
+3. In-memory only settings/user custom file type
 ```
-@dataclass(None)
+@settingsclass(None)
 class Settings:
     [...]
 ```
@@ -160,7 +166,7 @@ All arguments of the decorator can also be overriden by the constructor. To avoi
 `RandomString[max_length, min_length=-1, /, random_function: Callable = secrets.token_urlsafe]`
 
 Generates a random string between the specified lengths. If max is not specified, the  string will have a fixed length equal to the specified min length. Optionally a the `random_function` can also be specified which will be called as `random_function(max_length)[:true_length]`. The types can also be called directly to test them e.g. `RandomString(5)` will return e.g. `Ku_nR`. Uses `secrets.token_urlsafe`  
-**The default value sapcified by user is ignored**
+**The default value sapcified by user is ignored.**
 
 ### RandomInt[min_value, max_value, /, random_function] / RandomFloat[~]
 `RandomInt[min_value: int, max_value: int, random_function: Callable = random.randint]`  
@@ -174,9 +180,9 @@ The parameter specified will not be output to the file when specified, but will 
 
 ### Encryted[type]
 Encryption is based on AES128 (256 is slower with no practical benefits).  
-By default both the key and salt are randomly generated and saved inside the library directory. The IV is included within the encrypted string's field.  　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
+By default both the key and salt are randomly generated and saved inside the library directory. The IV is included within the encrypted string's field.  
 This can be overwritten by specifying the `encryption_key` per object or `common_encryption_key` at the class definition level.
-This can be either a string or a funciton handle that will be called as is.   　　
+This can be either a string or a funciton handle that will be called as is.  
 Salt is generated and saved per environment, ensuring that a config file cannot be copy-pasted from one environment to an other, providing an other layer of protection over the key. For enviroments where the directory is not user-writeable the salt can be also be specified in binary string form. Per class specification is not supported, as it is not the intended use-case.    
 A full specification example would be:  
 
@@ -202,7 +208,7 @@ Supports any type that can be cast to string
 `save_to_file(self, path)`  
 Saves to contents (including encryptino) to the specified path
 
-# Example
+# Full Example
 
 A common use case scenario with print statements can be found inside [demo.py](demo.py)
 

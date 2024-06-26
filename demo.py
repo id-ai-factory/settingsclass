@@ -1,4 +1,4 @@
-from settings import settingsclass, Hidden, Encrypted, RandomFloat, RandomString
+from settingsclass import settingsclass, Hidden, Encrypted, RandomFloat, RandomString
 
 
 # Use the locally created encrpyion key and salt

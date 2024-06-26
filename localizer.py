@@ -7,14 +7,14 @@ Created on Fri Apr  8 10:50:50 2022
 
 # 翻訳に関する関数
 from os import listdir
-from os.path import join, exists, isdir, splitext
+from os.path import join, exists, isdir, splitext, dirname
 from collections import OrderedDict
 import csv
 import warnings
 import re
 
 DEFAULT_EXTENSIONS = ["csv"]
-DEFAULT_FOLDER = "loc"
+DEFAULT_FOLDER = join(dirname(__file__), "loc")
 
 
 def _has_parameters(key):
@@ -109,7 +109,9 @@ def set_language(language: str) -> None:
         )
 
 
-def _listup_files(folder: str = DEFAULT_FOLDER, extensions: list[str] = None, recursive: bool = False) -> list[str]:
+def _listup_files(
+    folder: str = DEFAULT_FOLDER, extensions: list[str] = None, recursive: bool = False
+) -> list[str]:
     """
     フォルダーのすべてのファイルをリストアップする。(utils.pyにもありますが循環参照回避のため自作)
 
@@ -152,7 +154,9 @@ def _load_translations(langfile_directory: list[str] = None):
         with open(langfile_path, encoding="utf-8") as lang_file:
             lang_reader = csv.reader(lang_file, delimiter=",", quotechar='"')
             for row in lang_reader:
-                if row and not (len(row) >= 1 and len(row[0]) >= 1 and row[0][0] in ("#", "＃")):
+                if row and not (
+                    len(row) >= 1 and len(row[0]) >= 1 and row[0][0] in ("#", "＃")
+                ):
                     # 　最初の行は言語の定義
                     if not words:
                         assert (
@@ -174,7 +178,10 @@ def _load_translations(langfile_directory: list[str] = None):
                             if key != "id":
                                 lang = langs[lang_id]
                                 if key in words[lang]:
-                                    warnings.warn(f"キーの重複を発見しました。Duplicate key found: {key}", UserWarning)
+                                    warnings.warn(
+                                        f"キーの重複を発見しました。Duplicate key found: {key}",
+                                        UserWarning,
+                                    )
                                 words[lang][key] = entry
     return words, langs
 

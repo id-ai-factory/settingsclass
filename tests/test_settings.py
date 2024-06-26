@@ -22,7 +22,8 @@ import pytest
 from loguru import logger
 from loguru_caplog import loguru_caplog as caplog  # noqa: F401
 
-from settings import (
+from localizer import tr, set_language
+from settingsclass.settingsclass import (
     settingsclass,
     RandomFloat,
     RandomInt,
@@ -33,14 +34,14 @@ from settings import (
     decrypt_message,
     _within_random_limits,
 )
-import settings  # used for mocking
+from settingsclass import settingsclass as settingclass_lib
+
 import warnings
-from localizer import tr, set_language
 
 # %%
 PARENT_IN = join("tests", "input", "settingsclass")
 PARENT_OUT = join("tests", "output", "settingsclass")
-set_language("ja")
+set_language("en")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -57,11 +58,11 @@ def clean_output():
 
 @contextmanager
 def silent_output():
-    logger.disable("settings")
+    logger.disable("settingsclass")
     try:
         yield None
     finally:
-        logger.enable("settings")
+        logger.enable("settingsclass")
 
 
 @settingsclass(
@@ -225,7 +226,7 @@ def test_limit_verification():
 
 
 # Mock load key to not use any files
-@patch("settings._load_key")
+@patch.object(settingclass_lib, "_load_key")
 def test_encrypt_decrypt_fileless(load_key_fileless):
     load_key_fileless.return_value = token_bytes(16)
     for keylen in range(6, 20):
@@ -236,7 +237,7 @@ def test_encrypt_decrypt_fileless(load_key_fileless):
 
 
 # Mock load key to not create the files inside the test folder
-@patch("settings.os.path.join")
+@patch("os.path.join")
 def test_encrypt_decrypt_fileful(load_key_custom_path):
     parent = join(PARENT_OUT, "settingsclass", "keyfiles")
     makedirs(parent)
