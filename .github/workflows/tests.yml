@@ -37,4 +37,9 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        python -m pytest tests tests\test_settings.py tests\test_localization.py tests\test_localization_fail_cases.py
+        python -m pytest tests\test_settings.py tests\test_localization.py tests\test_localization_fail_cases.py
+    - name: Generate Badge
+      run: |
+        coverage report
+        coverage xml 
+        genbadge coverage -i coverage.xml
