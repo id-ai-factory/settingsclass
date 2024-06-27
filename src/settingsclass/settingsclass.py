@@ -29,6 +29,7 @@ from .localizer import set_language as _set_language
 
 # %%
 ENC_PREFIX = "?ENC"
+DEFAULT_FLOAT_PRECISION = 3
 
 _key_lock = Lock()
 
@@ -156,7 +157,7 @@ class RandomString(str, _RandomType):
         cls,
         max_length,
         min_length=-1,
-        /,
+        *,
         random_function: Callable = secrets.token_urlsafe,
     ):
         """the random function should take one parameter, and return a string at least the length of the stirng"""
@@ -175,7 +176,13 @@ class RandomString(str, _RandomType):
 
 
 class RandomInt(int, _RandomType):
-    def __new__(cls, min_value, max_value, random_function: Callable = random.randint):
+    def __new__(
+        cls,
+        min_value,
+        max_value,
+        *,
+        random_function: Callable = random.randint,
+    ):
         return random_function(min_value, max_value)
 
 
@@ -184,11 +191,16 @@ class RandomFloat(float, _RandomType):
         cls,
         min_value: float,
         max_value: float,
+        precision: int = DEFAULT_FLOAT_PRECISION,
+        *,
         random_function: Callable = random.random,
     ):
         if min_value == max_value:
-            return super().__new__(cls, min_value)
-        return float(random_function() * (max_value - min_value) + min_value)
+            uncapped_val = super().__new__(cls, min_value)
+        uncapped_val = float(random_function() * (max_value - min_value) + min_value)
+        if precision >= 0:
+            return round(uncapped_val, precision)
+        return precision
 
 
 # note: use lowercase for  subclasses, they will be shadowed by instance values
@@ -372,6 +384,18 @@ def update_config(self, config: configparser.ConfigParser) -> None:
                                 var_value, self._encryption_key, self._salt
                             )
                             var_value = f"{ENC_PREFIX}{var_value.hex()}"
+
+                        if (
+                            var_value
+                            and issubclass(var_type, _RandomType)
+                            and var_type.__base__ is float
+                        ):
+                            precision = (
+                                DEFAULT_FLOAT_PRECISION
+                                if len(var_type.__args__) < 3
+                                else var_type.__args__[2]
+                            )
+                            var_value = f"{var_value:{precision}}"
                         config[section_name][var_name] = str(
                             var_value
                         )  # windowsのconfigクラスは文字列のみ
@@ -703,6 +727,7 @@ def _set_members(
 def _add_settings_layer(
     cls: ClassType,
     env_prefix: str = "",
+    float_precision: int = 3,
     common_encryption_key: type[str | Callable[[Any], str] | None] = None,
     salt: bytes = None,
 ) -> ClassType:
@@ -784,7 +809,6 @@ def settingsclass(
     /,
     *,
     env_prefix="",
-    float_decimals: int = 3,  # TODO: ~
     encryption_key: type[str | Callable[[Any], str] | None] = None,
     _salt: bytes = None,
 ):
@@ -799,7 +823,6 @@ def settingsclass(
         encryption_key (type[str  |  Callable[[Any], str]  |  None], optional):
             Key used to encrypt values. Takes priority over decorator setting
             this value is used. Defaults to None.
-        float_decimals(int): Number of decimals when using RandomFloat type
         _salt (bytes, optional): The salt that is used in combination with the key.
             By default, a random file is generated on the machine, but can be set manually.
             Defaults to None.
@@ -811,7 +834,10 @@ def settingsclass(
     # ↓ copied from dataclass
     def wrap(cls):
         return _add_settings_layer(
-            cls, env_prefix, common_encryption_key=encryption_key, salt=_salt
+            cls,
+            env_prefix,
+            common_encryption_key=encryption_key,
+            salt=_salt,
         )
 
     # See if we're being called as @dataclass or @dataclass().
@@ -834,8 +860,6 @@ def settingsclass(
 
 
 if __name__ == "__main__":
-    # conf = _Settings(f"conf/{RandomString(5)}.ini")
-
     # Only for quick testing during development
     @settingsclass  # (encryption_key="123456789")
     class _Settings:
@@ -862,6 +886,7 @@ if __name__ == "__main__":
             timeout: int = 300
 
     conf = _Settings("cx.ini")
+    # conf = _Settings(f"conf/{RandomString(5)}.ini")
     print(conf)
 
 # %%

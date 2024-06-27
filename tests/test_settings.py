@@ -95,6 +95,28 @@ class Settings:
 # %% Test internal functions
 
 
+def test_random_str():
+    for minval, maxval in ((0, 5), (6, 11)):
+        vals = []
+        for _ in range(1000):
+            val = RandomString(maxval, minval) if minval else RandomString(maxval)
+            assert len(val) <= maxval and len(val) >= minval
+            vals.append(val)
+
+        val_lens = {len(v) for v in vals}
+        if minval:
+            for i in range(minval, maxval):
+                assert i in val_lens
+        else:
+            assert val_lens == {maxval}
+
+    vals = set()
+    for _ in range(10000):
+        vals.add(RandomString(105, 10, random_function=lambda _: "alma"))
+
+    assert vals == {"alma"}
+
+
 def test_random_int():
     """エラー発生、1000回実行し、全ての値が範囲内にあるかどうかを確認する"""
     maxval = 7
@@ -126,7 +148,7 @@ def test_random_int():
     # 指定された関数を使っていること
     vals = set()
     for _ in range(1000):
-        vals.add(RandomInt(-5, 100, lambda a, b: 92))
+        vals.add(RandomInt(-5, 100, random_function=lambda a, b: 92))
 
     assert vals == {92}
 
@@ -138,7 +160,7 @@ def test_random_float():
         vals = []
         for i in range(1000):
             val = RandomFloat(minval, maxval)
-            assert val < maxval and val >= minval
+            assert val <= maxval and val >= minval
             vals.append(val)
 
         # 3分の一に入る値がある
@@ -166,31 +188,33 @@ def test_random_float():
     # 指定された関数を使っていること
     vals = set()
     for _ in range(1000):
-        vals.add(RandomFloat(1, 2, lambda: 92))
+        vals.add(RandomFloat(1, 2, random_function=lambda: 92))
 
     assert vals == {93}
 
+    # 制限の確認
+    # 1. 自動
+    long_one_found = False
+    str_len = 5  # 3 + one digit + decimal point
+    for _ in range(1000):
+        fv = RandomFloat(1, 2)
+        if len(str(fv)) == str_len:
+            long_one_found = True
+        assert len(str(fv)) <= str_len, fv
+    assert long_one_found
 
-def test_random_str():
-    for minval, maxval in ((0, 5), (6, 11)):
-        vals = []
+    # 2. 固定
+
+    long_one_found = False
+    for limit in (0, 1, 4, 5):
+        str_len = max(3, limit + 2)  # 3 + one digit + decimal point
         for _ in range(1000):
-            val = RandomString(maxval, minval) if minval else RandomString(maxval)
-            assert len(val) <= maxval and len(val) >= minval
-            vals.append(val)
-
-        val_lens = {len(v) for v in vals}
-        if minval:
-            for i in range(minval, maxval):
-                assert i in val_lens
-        else:
-            assert val_lens == {maxval}
-
-    vals = set()
-    for _ in range(10000):
-        vals.add(RandomString(105, 10, lambda _: "alma"))
-
-    assert vals == {"alma"}
+            fv = RandomFloat(1, 2, limit)
+            if len(str(fv)) == str_len:
+                long_one_found = True
+            cast_len = len(str(fv))
+            assert cast_len <= str_len, f"{str(fv)} over the limit of {str_len}"
+        assert long_one_found
 
 
 def test_limit_verification():

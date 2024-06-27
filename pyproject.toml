@@ -9,7 +9,7 @@ authors = [
 ]
 description = "A class decorator to easily store setting values with automatic file io."
 keywords = ["settings", "config", "configuration", "ini", "configparser", "dataclass"]
-version = "0.1.0"
+version = "0.1.1"
 license = {text = "MIT Licence"}
 readme = "README.md"
 requires-python = ">=3.11"
