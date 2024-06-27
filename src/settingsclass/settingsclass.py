@@ -16,21 +16,37 @@ from secrets import token_bytes
 import configparser
 import random
 import secrets
-from types import GenericAlias, MethodType
-from typing import Self, Any, Callable
+from types import GenericAlias, MethodType, FunctionType
+from typing import Any, Callable, TypeVar
 import os
 from threading import Lock
 
 from loguru import logger
 
-from .localizer import tr, set_language
+from .localizer import tr
+from .localizer import set_language as _set_language
 
 
 # %%
-set_language("en")
 ENC_PREFIX = "?ENC"
 
 _key_lock = Lock()
+
+ClassType = TypeVar("ClassType")
+
+
+def availalbe_languages():
+    """Returns the avaiable logging and error message languages"""
+    return ("ja", "en")
+
+
+def set_language(lang: str):
+    """Changes the language and error messages
+
+    Args:
+        lang (str): Two character code of the language see <avaialbe_languages>
+    """
+    _set_language(lang)
 
 
 class KeyfileLocationError(RuntimeError):
@@ -226,6 +242,7 @@ def _auto_cast_type(
 
 
 def user_friendly_type_name(typ):
+    """Returns <float> instead of __main__.RandomFloat[5] etc."""
     friendly_type = typ
     if issubclass(typ, _TypeWarpper):
         friendly_type = typ.__args__[0]
@@ -236,16 +253,19 @@ def user_friendly_type_name(typ):
 
 
 def _default_value_for_type(typ, default_value_for_primitive):
+    """Returns a default value for simple types, but generates one for random types"""
     if issubclass(typ.__origin__, _RandomType):
         return _init_randomclass(typ)
     return default_value_for_primitive
 
 
 def _init_randomclass(_cls):
+    """Returns a possible value for the random value of the appropriate type"""
     return _cls.__origin__(*_cls.__args__)
 
 
 def _within_random_limits(typ, value):
+    """Returns true if the provided value is within the type hint limits"""
     if not issubclass(typ, _RandomType) or isinstance(typ, _RandomType):
         raise TypeError(tr("function_can_only_be_called_on_randomtype_1", typ))
     if not hasattr(typ, "__args__"):
@@ -264,7 +284,10 @@ def _within_random_limits(typ, value):
 
 
 def _is_hidden_variable(obj, member_name) -> bool:
-    return member_name[:1] == "_" or isinstance(getattr(obj, member_name), MethodType)
+    """Verifies that the member is not a function, method or a hidden variable"""
+    return member_name[:1] == "_" or isinstance(
+        getattr(obj, member_name), (MethodType, FunctionType)
+    )
 
 
 def is_settingsclass_instance(obj):
@@ -320,6 +343,14 @@ def _encrypt_field(message, encryption_key, salt: bytes = None):
 
 
 def update_config(self, config: configparser.ConfigParser) -> None:
+    """Updates the provided config file with the values inside current instance
+    The Hidden type variables are not added.
+    Encryption is performed for members of type Encrypted
+
+    Args:
+        config (configparser.ConfigParser): target configuration object
+    """
+
     for section_name in self.__dir__():
         if not _is_hidden_variable(self, section_name):
             section_instance = getattr(self, section_name)
@@ -347,11 +378,26 @@ def update_config(self, config: configparser.ConfigParser) -> None:
 
 
 def update_from(
-    self, config: configparser.ConfigParser | Self, secrets_only: False
+    self, config: configparser.ConfigParser, ecnrypted_only: False
 ) -> list[str]:
+    """Overwrites current values with values contained in the specified config object
+
+    Args:
+        config (configparser.ConfigParser): ConfigParser object.
+            User is responsible for population, case-sensitivity settings etc.
+        ecnrypted_only (False): Only copies values that are of type Encrpyted
+
+    Returns:
+        list[str]: list of values that should have been encrypted in the ConfigParser object
+            but were not
+    """
+
     config_file_sections_remaining = [
         section for section in config if section != "DEFAULT"
     ]
+
+    if ecnrypted_only:
+        raise NotImplementedError()  # TODO
 
     # 期待のクラスを反復処理する
     # 例：[('Program', <class ...Settings.Program'), ('GPT', <class ...), ...]
@@ -381,6 +427,9 @@ def update_from(
 
 
 def save_to_file(self, path):
+    """Generates a config file to the specified path.
+    If the file does not exist, both parent folders and file will be generated
+    """
     config = configparser.ConfigParser(allow_no_value=True)
     return self._save_to_file(path, config)
 
@@ -394,7 +443,19 @@ def _save_to_file(self, path, config):
         config.write(configfile)
 
 
-def warn_confusing_types(value, section_name, parameter_name):
+def warn_confusing_types(value: Any, section_name: str, parameter_name: str) -> None:
+    """Checks for types that could be a user input mistake.
+    Currently checked types:
+    bool:
+        if the value is "true", "False", "FALSE" etc, but is marked as :str
+    int, float:
+        the value can be cast to int of float, but is marked as :str
+
+    Args:
+        value (Any): The value of the option
+        section_name (str): name of the section in the config file
+        parameter_name (str): name of the option insde the config section
+    """
     if isinstance(value, str):
         if value.upper() in ("TRUE", "FALSE"):
             logger.warning(
@@ -430,9 +491,21 @@ def _load_settings_init(
     path: str = "config.ini",
     secret_config_path="/run/secrets/flask_settings",
     case_sensitive: bool = False,
-) -> Self:
-    """.iniフォーマットのファイルから設定値を読み込む。存在しない場合はデフォルト値で生成する。
-    secret_config_pathが存在する場合は優先する"""
+) -> None:
+    """Loads the settings values after the @dataclass initialization has already taken place
+
+    Args:
+        path (str, optional): The file path to read from and write to. Defaults to "config.ini".
+        secret_config_path (str, optional): If this file exists, it will be used instead of path.
+            See https://docs.docker.com/engine/swarm/secrets/
+            Defaults to "/run/secrets/flask_settings".
+        case_sensitive (bool, optional): If true section and variable names will be case sensitive
+            Defaults to False.
+
+    Raises:
+        IsADirectoryError: If the target is a folder AND there is a [config.ini] folder inside
+
+    """
 
     # flow: <file exists?> YES -> [read file (Config)] -> [Enforce Types (w/ warnings)] -> [Convert to Settings]
     #                      NO  -> [init values (Config)] -> [Enforce Types] (w/out warnigns)]-> [Convert to Settings]
@@ -462,7 +535,7 @@ def _load_settings_init(
             # 通常に存在する場合
             logger.debug(tr("loading_settings_from_1", path))
             config.read(path, encoding="utf-8")
-            need_encryption = self.update_from(config, secrets_only=False)
+            need_encryption = self.update_from(config, ecnrypted_only=False)
         else:
             # config.iniはフォルダーである可能性はある
             raise IsADirectoryError(tr("file_is_folder_1", path))
@@ -479,10 +552,6 @@ def _load_settings_init(
 
 
 # %%
-
-
-def copy_secret_values(self, source: Any):
-    pass
 
 
 def _set_param_from_env(
@@ -632,11 +701,30 @@ def _set_members(
 
 # %%
 def _add_settings_layer(
-    cls,
+    cls: ClassType,
     env_prefix: str = "",
     common_encryption_key: type[str | Callable[[Any], str] | None] = None,
     salt: bytes = None,
-):
+) -> ClassType:
+    """Dynamically binds the necessary functions after applying the @dataclass decorator.
+
+    Args:
+        env_prefix (str, optional): prefix to be attached when checking env vars.
+            e.g. if set to foo, in case of config.ui.color the checked name is FOO_UI_COLOR
+            No check is performed if set to None.
+            Defaults to "", in which case only the section and var names are used,
+            e.g config.ui.color -> UI_COLOR
+        common_encryption_key (type[str  |  Callable[[Any], str]  |  None], optional):
+            Key used to encrypt values. If no key is set when using the class constructor,
+            this value is used. Defaults to None.
+        salt (bytes, optional): The salt that is used in combination with the key.
+            By default, a random file is generated on the machine, but can be set manually.
+            Defaults to None.
+
+    Returns:
+        ClassType: Returns the decorated class
+    """
+
     for subclass_name, subclass_proper in cls.__dict__.items():
         if not _is_hidden_variable(cls, subclass_name):
             setattr(cls, subclass_name, dataclass(getattr(cls, subclass_name)))
@@ -658,6 +746,10 @@ def _add_settings_layer(
         # _set_qualname(cls, extra_func.__name__)
         # extra_func.__qualname__ = f"{cls.__qualname__}.{extra_func.__name__}"  # TODO is this necessary? Interferes with inheritance?
         setattr(cls, extra_func.__name__, extra_func)
+
+    # add wrapper for easier access
+    for static_func in (availalbe_languages, set_language):
+        setattr(cls, static_func.__name__, staticmethod(static_func))
 
     cls = dataclass(cls)
 
@@ -696,6 +788,26 @@ def settingsclass(
     encryption_key: type[str | Callable[[Any], str] | None] = None,
     _salt: bytes = None,
 ):
+    """Dynamically binds the necessary functions after applying the @dataclass decorator.
+
+    Args:
+        env_prefix (str, optional): prefix to be attached when checking env vars.
+            e.g. if set to foo, in case of config.ui.color the checked name is FOO_UI_COLOR
+            No check is performed if set to None.
+            Defaults to "", in which case only the section and var names are used,
+            e.g config.ui.color -> UI_COLOR
+        encryption_key (type[str  |  Callable[[Any], str]  |  None], optional):
+            Key used to encrypt values. Takes priority over decorator setting
+            this value is used. Defaults to None.
+        float_decimals(int): Number of decimals when using RandomFloat type
+        _salt (bytes, optional): The salt that is used in combination with the key.
+            By default, a random file is generated on the machine, but can be set manually.
+            Defaults to None.
+
+    Returns:
+        ClassType: Returns the decorated class
+    """
+
     # ↓ copied from dataclass
     def wrap(cls):
         return _add_settings_layer(

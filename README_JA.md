@@ -7,13 +7,15 @@
 
 # 中心となるアディア
 設定を保存するための、使いやすく、かつ機能豊富なソリューション。  
-定義と使用方法は [dataclass](https://docs.python.org/3/library/dataclasses.html) と同様ですが、外部【ini】ファイルとの同期や、ランダムな文字列など実行時に生成される値にも対応しています。
+定義と使用方法は [dataclass](https://docs.python.org/3/library/dataclasses.html) と同様ですが、外部【ini】ファイルとの同期や、ランダムな文字列など実行時に生成される値にも対応しています。  
 
 
 # 簡単な運用例
 
 ```
-from settingsclass import settingsclass, Hidden, Encrypted, RandomString, RandomInt
+from settingsclass import settingsclass, Hidden, Encrypted, RandomString, RandomInt, set_language
+
+set_language("ja") # エラーうやログメッセージを日本語に変換する。
 
 @settingsclass
 class WebConfig:
@@ -35,6 +37,8 @@ def foo(x: int):  # ユーザー関数のプレースホルダ
 
 foo(config.agent.seed)  # 変数は【int】型であることが保証されている
 config.agent.seed = 11 # 値は通常通り設定でき、値はインスタンス間で共有されない
+
+# conf.set_language("ja") # 言語設定は共通です
 ``` 
 
 *全機能紹介は[こちら](demo.py)*をご覧ください。*
