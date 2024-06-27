@@ -5,13 +5,13 @@
 # settingsclass  
 A decorator for classes to be used as settings objects based on the [dataclass](https://docs.python.org/3/library/dataclasses.html) approach.  
 
-[日本語の説明](REAMDE_JA.md)
+[日本語の説明](README_JA.md)
 
 ---
 
 # Core idea
 An easy-to-use, but feature-rich solution to storing settings.   
-Definition and use is similar to [dataclass](https://docs.python.org/3/library/dataclasses.html), but includes synchronization with an external ini file.
+Definition and use is similar to [dataclass](https://docs.python.org/3/library/dataclasses.html), but includes synchronization with an external ini file and support for runtime-generated values, e.g. random strings.
 
 
 ### Simple use-case example:
@@ -24,7 +24,7 @@ class WebConfig:
     class login:
         min_passw_len: int = 12 # Integer with default value of 12
         debug_passw: Encrypted[RandomString[16]] = "" # Generates a 16 character encrypted string
-        console_colored_output: Hidden[bool] = True # The value is not automatically printed 
+        console_colored_output: Hidden[bool] = True # The value is not saved to disk automatically 
 
     class agent:
         api_key: Encrypted[str] = "" # The default value is emptystring, but the user's input is automatically encrypted
@@ -32,7 +32,7 @@ class WebConfig:
 
 config = WebConfig("webconfig.ini") # if the file does not exist, it is created. Otherwise values stored inside are used over the above defined default values
 
-print(config) # Show the whole config file in a readable format
+print(config) # Show the whole config file in a human readable format
 
 def foo(x: int):  # Placeholder for user function
     print(f"Value {x} with type {type(x)}")
@@ -52,31 +52,31 @@ The most common recommendations for storing settings file are the following, but
        - Uses a two-tier dictionary-like object in memory
     - Advantages:
         - Simple and readable even for non-programmers
-        - Can be easily read from arbitrary file that matches format
+        - Can be read from the common ini format
         - Easy to save modified version
     - Disadvantages:
         - Lacks type hinting and type checking
-        - Missing values must be try-except-ed
-        - No support for optional settings
+        - Missing values must be try-except'ed
+        - No support for optional/advanced settings
         - No support for encryption
         - No auto-completion hints from IDE
 2. Using a .py file
     - Basic Concept
-        - Write normal python code that only has values
+        - Write normal python code that only stores data
     - Advantages
         - Types are easily visible
         - Can include additional calculation or processing
         - Easy to import
     - Disadvantages
        - Requires python knowledge, cannot be easily given to non-programmers
-       - Can include arbitrary code, therefore extremely unsafe 
+       - Can include arbitrary code, making it extremely unsafe 
        - Variants with different values need to be saved manually
        - Difficult to have default and custom values separately
        - Keeping secret keys hidden can be challenging
 
 3. Environmental variables:
     - Basic Concept:
-        - Default values defined inside code, custom values set read from enviroment
+        - Default values defined inside code, custom values read from the enviroment
     - Advantages:
         - Easy to set values when working inside containers
     - Disadvantages:
@@ -88,34 +88,31 @@ The most common recommendations for storing settings file are the following, but
 
 ## This libary
 - Basic Concept:
-    - The settings templates defined inside python code, with a non-developer friendly ini file for custom values
+    - The settings template defined inside python code, with a non-developer friendly ini file for custom values
 - Advantages:
     - Easy-to-understand standard ini file for non-developers and developers alike
-    - Types can be hinted and types are enforced when loading files (even from .ini files)
-    - Support for randomly generated string, int and float
+    - Support for environmental variables with user-defined prefix (also type cast automatically)
+    - Types can be hinted and types are enforced when loading (ini) files
+    - Support for randomly generated string, int and float at runtime
     - Support hidden/advanced settings
     - Support for automatic encryption of user added or default values
     - Auto-completion support due to dataclass backbone
     - Warnings on type mismatches 
-        - e.g. bool in code, but "5" in code 
-        - **reverse also true, e.g. str in code but "False" in config**
-    - Easy to save new variant, even durind execution time
-    - Config file can be hot-swapped or modified during runtime and re-read (file watching is importer's responsibility)
-    - Support for environmental variables with user-defined prefix (also type cast automatically)
-    - Safe against arbitrary content (warning message is displayed with the default value taking over)
-    - Basically no boilerplate
-
+        - e.g. bool in var definition, but "5" in code 
+        - **reverse also true, e.g. str hint in code but "False" in config**
+    - Easy to save new variant after modification
+    - Safe against arbitrary content (warning message is displayed and the default value is used instead)
+    - Basically no need for boilerplate code
 - Disadvantages:
     - No support for single level config (e.g. config.color must be converted to config.general.color or config.ui.color etc.)
-    - No support for file watching out-of-the-box
+    - No support for file change watching out-of-the-box
     - Only supports .ini (JSON support planned)
-
 
 
 # Requirements
 Python 3.11+  
-Only standard library dependedncies
-
+- loguru
+- pycryptodome
 
 # Full Feature list with usage examples
 
@@ -124,7 +121,7 @@ Only standard library dependedncies
 
 `@settingsclass(env_prefix: str = "", common_encryption_key: type[str | Callable[[Any], str] | None] = None, salt: bytes = None)`
 
-Use cases: 
+### Use cases: 
 1. No arguments  
 The contents of the class are saved under "congfig.ini" in the current directory. Encryption keys are saved in the library's local folder. 
 ```
@@ -167,7 +164,7 @@ All arguments of the decorator can also be overriden by the constructor. To avoi
 ### Random String
 `RandomString[max_length, min_length=-1, /, random_function: Callable = secrets.token_urlsafe]`
 
-Generates a random string between the specified lengths. If max is not specified, the  string will have a fixed length equal to the specified min length. Optionally a the `random_function` can also be specified which will be called as `random_function(max_length)[:true_length]`. The types can also be called directly to test them e.g. `RandomString(5)` will return e.g. `Ku_nR`. Uses `secrets.token_urlsafe`  
+Generates a random string between the specified lengths. If `max` is not specified, the  string will have a fixed length equal to the specified min length. Optionally a the `random_function` can also be specified which will be called as `random_function(max_length)[:true_length]`. The types can also be called directly to test them e.g. `RandomString(5)` will return e.g. `Ku_nR`. Uses `secrets.token_urlsafe`  
 **The default value sapcified by user is ignored.**
 
 ### RandomInt[min_value, max_value, /, random_function] / RandomFloat[~]
@@ -178,15 +175,15 @@ Generates a number between the two limits. Optionally a function can be specifie
 
 ### Hidden[type]
 
-The parameter specified will not be output to the file when specified, but will be read both from environmental variables and the specified files when available.
+The parameter specified will not be written to the file when specified, but will be read both from environmental variables and the specified files when available.
 
 ### Encryted[type]
 Encryption is based on AES128 (256 is slower with no practical benefits).  
 By default both the key and salt are randomly generated and saved inside the library directory. The IV is included within the encrypted string's field.  
 This can be overwritten by specifying the `encryption_key` per object or `common_encryption_key` at the class definition level.
 This can be either a string or a funciton handle that will be called as is.  
-Salt is generated and saved per environment, ensuring that a config file cannot be copy-pasted from one environment to an other, providing an other layer of protection over the key. For enviroments where the directory is not user-writeable the salt can be also be specified in binary string form. Per class specification is not supported, as it is not the intended use-case.    
-A full specification example would be:  
+Salt is generated and saved per environment, ensuring that a config file cannot be copy-pasted from one environment to an other, providing an other layer of protection over the encryption key. For enviroments where the directory is not user-writeable the salt can be also be specified in binary string form. Per class specification is not supported, as it is not the intended use-case.    
+An example of a full specification would be:  
 
 ```
 @settingsclass(encryption_key="123X456", _salt=b"\x86\xce'?\xbc\x1eA\xd3&\x84\x82\xb4\xa3\x99\x10P")
@@ -204,17 +201,17 @@ Supports any type that can be cast to string
 ### Loading from an ini file
  `update_from(self, config: configparser.ConfigParser, secrets_only: False) -> list[str]`  
 
- configparser handle should be prepared by the user, including case sensitivity settings etc. Returns a list of fields that should have been encrypted but were not
+ configparser handle should be prepared by the user, including case sensitivity settings etc. Returns a list of fields that should have been encrypted but were not. For automatic encryption please use the constructor
 
 ### Saving to an ini file
 `save_to_file(self, path)`  
-Saves to contents (including encryptino) to the specified path
+Saves to contents (including encryption) to the specified path
 
 # Full Example
 
-A common use case scenario with print statements can be found inside [demo.py](demo.py)
+A detailed use case scenario with print statements can be found inside [demo.py](demo.py)
 
-The generated ini file should look similar to the following. Encrypted keys will differ.
+The generated ini file should look similar to the following. Encrypted values will differ.
 
 ```
 [login]
