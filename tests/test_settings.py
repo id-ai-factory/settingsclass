@@ -9,7 +9,7 @@ Created on 2023.05.24
 from shutil import rmtree
 import sys
 from os.path import join, exists, isdir
-from os import makedirs, environ
+from os import makedirs, environ, listdir
 from contextlib import contextmanager
 import re
 from secrets import token_bytes
@@ -30,10 +30,16 @@ from src.settingsclass.settingsclass import (
     RandomString,
     Encrypted,
     Hidden,
+    availalbe_languages,
     encrypt_message,
+    _encrypt_field,
+    _load_key,
     decrypt_message,
     _within_random_limits,
+    hash_value,
 )
+
+from src.settingsclass.settingsclass import set_language as set_language_settings
 from src.settingsclass import settingsclass as settingclass_lib
 from src.settingsclass.localizer import tr, set_language
 
@@ -92,7 +98,44 @@ class Settings:
         timeout: int = 300
 
 
+# %% Test loc wrapper functions
+
+
+def test_availalbe_languages():
+    av_lang = availalbe_languages()
+    assert isinstance(av_lang, tuple)
+    assert len(av_lang) >= 2
+
+
+def test_wrapped_set_lang():
+    set_language_settings("ja")
+
+    with pytest.raises(TypeError) as ex:
+        _within_random_limits(str, "abcde")
+    assert (
+        ex.value.args[0]
+        == "この関数は_RandomTypeのみで呼び出すことができます：<class 'str'>"
+    )
+    set_language_settings("en")
+
+    with pytest.raises(TypeError) as ex:
+        _within_random_limits(str, "abcde")
+    assert (
+        ex.value.args[0]
+        == "This function can only be called on _RandomType: <class 'str'>"
+    )
+
+
 # %% Test internal functions
+
+
+def hamming_distance(chain1, chain2):
+    return sum(c1 != c2 for c1, c2 in zip(chain1, chain2))
+
+
+def test_hash():
+    assert hamming_distance(hash_value("12345"), hash_value("123456")) > 20
+    assert len(hash_value("a")) >= 32
 
 
 def test_random_str():
@@ -177,6 +220,10 @@ def test_random_float():
         else:
             raise AssertionError(tr("higher_third_not_reached_during_ddcsst"))
 
+    for _ in range(100):
+        x = 1.324
+        assert RandomFloat(x, x) == RandomFloat(x, x)
+
     # パラメータ数
     with pytest.raises(TypeError):
         RandomFloat(5.1)
@@ -219,6 +266,8 @@ def test_random_float():
 
 def test_limit_verification():
     assert _within_random_limits(RandomString[5], "abcde")
+
+    assert _within_random_limits(RandomString, "abcde")
     # with pytest.raises():
     assert not _within_random_limits(RandomString[5], "abcd")
     assert not _within_random_limits(RandomString[5], "")
@@ -248,6 +297,12 @@ def test_limit_verification():
     assert _within_random_limits(RandomFloat[2, 5], 5.0)
     assert not _within_random_limits(RandomFloat[2, 5], 5.001)
     assert not _within_random_limits(RandomFloat[2, 5], 6)
+
+
+# the other variants are tested below
+def test_encrypt_field_custom_method():
+    for salt in (None, 12, "asd", b"asd"):
+        assert _encrypt_field("asd", encryption_key=lambda s: "12345", salt=salt)
 
 
 # Mock load key to not use any files
@@ -330,6 +385,35 @@ def test_settings_read():
     with silent_output():
         config = Settings(join(PARENT_IN, "config_modified.ini"))
     validate_good_contents(config)
+
+
+def test_load_key():
+    parent = join(PARENT_OUT, RandomString(5), RandomString(4))
+    fn1 = RandomString(10)
+    fn1_full = join(parent, fn1)
+    fn2 = RandomString(10)
+    fn2_full = join(parent, fn2)
+
+    key1 = _load_key(fn1, parent_dir=parent)
+    assert not exists(fn1_full)  # fn should be hashed
+    assert len(key1) >= 16
+    key2 = _load_key(fn2_full, parent_dir=parent)
+    assert len(key2) >= 16
+    assert not exists(fn2)  # fn should be hashed
+    assert len(listdir(parent)) == 2
+
+    assert hamming_distance(key1, key2) > 11
+
+    key1_hat = _load_key(fn1, parent_dir=parent)
+    assert key1 == key1_hat
+
+
+def test_create_subdirs():
+    parent = join(PARENT_OUT, RandomString(5), RandomString(4))
+    assert not exists(parent), "Incorrect test setup"
+    with silent_output():
+        config = Settings(parent, "xy.ini")
+    validate_init_contents(config)
 
 
 def test_object_not_static():

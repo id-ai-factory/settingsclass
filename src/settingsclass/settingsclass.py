@@ -60,11 +60,16 @@ def hash_value(value: str):
     return hash.hexdigest()
 
 
-def _load_key(plain_filename: str):
+def _load_key(plain_filename: str, parent_dir: str = None):
+    """Loads a key from the specified path. If not parent_dir, the library directory is used"""
     true_filename = hash_value(plain_filename)
 
-    module_dir = os.path.dirname(__file__)
-    full_path = os.path.join(module_dir, true_filename)
+    if not parent_dir:
+        parent_dir = os.path.dirname(__file__)
+    elif not os.path.exists(parent_dir):
+        os.makedirs(parent_dir)
+
+    full_path = os.path.join(parent_dir, true_filename)
 
     try:
         if os.path.exists(full_path) and os.path.isfile(full_path):
@@ -852,14 +857,12 @@ def settingsclass(
 # %%
 
 # TODO add option to enforce limits for Random Types
-# TODO test for when the user doesnt specify limits for Randomtypes or they are of incorrect types
 # TODO add option to be silent - How?
 # TODO add option to silence type confusion warnings
-# TODO save env vars to config file? Doesn't make sense
 # TODO Having the options for JSON etc. would be nice
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     # Only for quick testing during development
     @settingsclass  # (encryption_key="123456789")
     class _Settings:
