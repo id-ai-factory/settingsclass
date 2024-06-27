@@ -15,7 +15,12 @@ import re as regex
 
 import pytest
 
-from localizer import tr, refresh_contents, current_language, set_language
+from src.settingsclass.localizer import (
+    tr,
+    refresh_contents,
+    current_language,
+    set_language,
+)
 
 xfail = pytest.mark.xfail
 

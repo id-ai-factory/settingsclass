@@ -22,8 +22,8 @@ import pytest
 from loguru import logger
 from loguru_caplog import loguru_caplog as caplog  # noqa: F401
 
-from localizer import tr, set_language
-from settingsclass.settingsclass import (
+
+from src.settingsclass.settingsclass import (
     settingsclass,
     RandomFloat,
     RandomInt,
@@ -34,7 +34,8 @@ from settingsclass.settingsclass import (
     decrypt_message,
     _within_random_limits,
 )
-from settingsclass import settingsclass as settingclass_lib
+from src.settingsclass import settingsclass as settingclass_lib
+from src.settingsclass.localizer import tr, set_language
 
 import warnings
 

@@ -2,6 +2,7 @@
 
 logs/
 tests/output
+config.ini
 web2.ini
 webconfig.ini
 
