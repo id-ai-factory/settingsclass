@@ -206,7 +206,7 @@ def refresh_contents(file_path: list[str] = None):
     try:
         selected_language = tr.current_lang
     except AttributeError:
-        selected_language = langs[0]
+        selected_language = langs[-1]
         tr.current_lang = selected_language
     set_language(selected_language)
 

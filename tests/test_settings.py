@@ -31,9 +31,10 @@ from src.settingsclass.settingsclass import (
     Encrypted,
     Hidden,
     availalbe_languages,
-    encrypt_message,
     _encrypt_field,
+    _decrypt_field,
     _load_key,
+    encrypt_message,
     decrypt_message,
     _within_random_limits,
     hash_value,
@@ -142,7 +143,7 @@ def test_random_str():
     for minval, maxval in ((0, 5), (6, 11)):
         vals = []
         for _ in range(1000):
-            val = RandomString(maxval, minval) if minval else RandomString(maxval)
+            val = RandomString(minval, maxval) if minval else RandomString(maxval)
             assert len(val) <= maxval and len(val) >= minval
             vals.append(val)
 
@@ -155,7 +156,7 @@ def test_random_str():
 
     vals = set()
     for _ in range(10000):
-        vals.add(RandomString(105, 10, random_function=lambda _: "alma"))
+        vals.add(RandomString(10, 105, random_function=lambda _: "alma"))
 
     assert vals == {"alma"}
 
@@ -301,8 +302,19 @@ def test_limit_verification():
 
 # the other variants are tested below
 def test_encrypt_field_custom_method():
+    original_value = "12345"
+    resulting_value = "olikujyhtg"
+    encrpytion_functions = (lambda s: resulting_value, lambda s: original_value)
     for salt in (None, 12, "asd", b"asd"):
-        assert _encrypt_field("asd", encryption_key=lambda s: "12345", salt=salt)
+        resulting_hat = _encrypt_field(
+            original_value, encryption_key=encrpytion_functions, salt=salt
+        )
+        assert resulting_hat == resulting_value
+
+        original_hat = _decrypt_field(
+            resulting_hat, encryption_key=encrpytion_functions, salt=salt
+        )
+        assert original_hat == original_value
 
 
 # Mock load key to not use any files

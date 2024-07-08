@@ -114,19 +114,23 @@ def _load_guard(key, iv, salt: bytes = None):
 
 
 # TODO optimize this
-def encrypt_message(message, key=None, salt: bytes = None):
+def encrypt_message(message: str, key=None, salt: bytes = None):
     iv = secrets.token_bytes(AES.block_size)
     guard = _load_guard(key, iv, salt)
     message = pad(str(message).encode("utf-8"), AES.block_size)
     return iv + guard.encrypt(message)
 
 
-def decrypt_message(message, key=None, salt: bytes = None):
+def decrypt_message(message: str, key=None, salt: bytes = None):
     iv = message[: AES.block_size]
     guard = _load_guard(key, iv, salt)
     return unpad(guard.decrypt(message[AES.block_size :]), AES.block_size).decode(
         "utf-8"
     )
+
+
+def _is_encoded(message: str):
+    return len(message) > len(ENC_PREFIX) and message[: len(ENC_PREFIX)] == ENC_PREFIX
 
 
 class _TypeWarpper:
@@ -160,12 +164,15 @@ class _RandomType:
 class RandomString(str, _RandomType):
     def __new__(
         cls,
-        max_length,
-        min_length=-1,
+        min_length,
+        max_length=-1,
         *,
         random_function: Callable = secrets.token_urlsafe,
     ):
         """the random function should take one parameter, and return a string at least the length of the stirng"""
+
+        if max_length < min_length:
+            min_length, max_length = max_length, min_length
 
         if min_length <= 0:
             min_length = max_length
@@ -347,15 +354,51 @@ def __repr__(self) -> str:
     return concated_str
 
 
-def _encrypt_field(message, encryption_key, salt: bytes = None):
-    if isinstance(encryption_key, Callable):
-        message = encryption_key(message)
+def _encrypt_field(
+    message, encryption_key: tuple[Callable, Callable] | str, salt: bytes = None
+):
+    """Encrpyts the field choosing a method depending on the encrpytion key"""
+    if isinstance(encryption_key, tuple):
+        message = encryption_key[0](message)
     elif encryption_key is None or isinstance(encryption_key, str):
         message = encrypt_message(message, encryption_key, salt)
     else:
         raise NotImplementedError(
             tr("invalid_encrpytion_key_type_1", type(encryption_key))
         )
+    return message
+
+
+def _decrypt_field(
+    message, encryption_key: tuple[Callable, Callable] | str, salt: bytes = None
+):
+    """Decrpyts the field choosing a method depending on the encrpytion key"""
+    if isinstance(encryption_key, tuple):
+        message = encryption_key[1](message)
+    elif encryption_key is None or isinstance(encryption_key, str):
+        message = decrypt_message(message, encryption_key, salt)
+    else:
+        raise NotImplementedError(
+            tr("invalid_encrpytion_key_type_1", type(encryption_key))
+        )
+    return message
+
+
+def _safe_decrypt_field(
+    message: str,
+    parameter_name_debug: str,
+    encryption_key: tuple[Callable, Callable] | str,
+    salt: bytes,
+) -> str:
+    """Decrpyts the target field swhile only logging ValueError, UnicodeDecodeError exceptions"""
+    true_val = message[len(ENC_PREFIX) :]
+    try:
+        # Both parts can throus\w Valuerror, the user-facing message is the same
+        true_val = bytes.fromhex(true_val)
+        message = _decrypt_field(true_val, encryption_key, salt)
+    except (ValueError, UnicodeDecodeError):
+        logger.error(tr("could_not_decode_string_1", parameter_name_debug))
+        message = ""
     return message
 
 
@@ -383,12 +426,29 @@ def update_config(self, config: configparser.ConfigParser) -> None:
                         is_wrapper_type and not issubclass(var_type.__origin__, Hidden)
                     ):
                         var_value = getattr(section_instance, var_name)
+                        if var_name in config[section_name]:
+                            config_val = config[section_name][var_name]
+                        else:
+                            config_val = ""
 
                         if var_value and issubclass(var_type, _Encrypted):
-                            var_value = _encrypt_field(
-                                var_value, self._encryption_key, self._salt
-                            )
-                            var_value = f"{ENC_PREFIX}{var_value.hex()}"
+                            current_unencrypted_value = None
+                            if _is_encoded(config_val):
+                                current_unencrypted_value = _safe_decrypt_field(
+                                    config_val,
+                                    var_name,
+                                    self._encryption_key,
+                                    self._salt,
+                                )
+                            if (not current_unencrypted_value) or str(
+                                current_unencrypted_value
+                            ) != str(var_value):
+                                var_value = _encrypt_field(
+                                    var_value, self._encryption_key, self._salt
+                                )
+                                var_value = f"{ENC_PREFIX}{var_value.hex()}"
+                            else:
+                                var_value = config_val
 
                         if (
                             var_value
@@ -662,19 +722,13 @@ def _set_members(
                     # 設定クラスの型ヒントにに合わせてみる
 
                     if issubclass(expected_type, _Encrypted):
-                        if (config_param_value[: len(ENC_PREFIX)]) == ENC_PREFIX:
-                            true_val = config_param_value[len(ENC_PREFIX) :]
-                            try:
-                                # Both parts can throus\w Valuerror, the user-facing message is the same
-                                true_val = bytes.fromhex(true_val)
-                                config_param_value = decrypt_message(
-                                    true_val, self._encryption_key, self._salt
-                                )
-                            except (ValueError, UnicodeDecodeError):
-                                logger.error(
-                                    tr("could_not_decode_string_1", parameter_name)
-                                )
-                                config_param_value = ""
+                        if _is_encoded(config_param_value):
+                            config_param_value = _safe_decrypt_field(
+                                config_param_value,
+                                parameter_name,
+                                self._encryption_key,
+                                self._salt,
+                            )
 
                         elif config_param_value:
                             need_encrpytion.append(parameter_name)
@@ -732,8 +786,7 @@ def _set_members(
 def _add_settings_layer(
     cls: ClassType,
     env_prefix: str = "",
-    float_precision: int = 3,
-    common_encryption_key: type[str | Callable[[Any], str] | None] = None,
+    common_encryption_key: type[str | tuple[Callable[[Any], str]] | None] = None,
     salt: bytes = None,
 ) -> ClassType:
     """Dynamically binds the necessary functions after applying the @dataclass decorator.
@@ -744,9 +797,11 @@ def _add_settings_layer(
             No check is performed if set to None.
             Defaults to "", in which case only the section and var names are used,
             e.g config.ui.color -> UI_COLOR
-        common_encryption_key (type[str  |  Callable[[Any], str]  |  None], optional):
+        common_encryption_key (type[str  |  tuple[Callable[[Any], str]]  |  None], optional):
             Key used to encrypt values. If no key is set when using the class constructor,
-            this value is used. Defaults to None.
+            this value is used. If you do not wish to use the default encrpyiton method,
+            you can also defy a tuple of encrpytion and decryption functions.
+            Defaults to None.
         salt (bytes, optional): The salt that is used in combination with the key.
             By default, a random file is generated on the machine, but can be set manually.
             Defaults to None.
@@ -827,7 +882,9 @@ def settingsclass(
             e.g config.ui.color -> UI_COLOR
         encryption_key (type[str  |  Callable[[Any], str]  |  None], optional):
             Key used to encrypt values. Takes priority over decorator setting
-            this value is used. Defaults to None.
+            this value is used.If you do not wish to use the default encrpyiton method,
+            you can also defy a tuple of encrpytion and decryption functions.
+            Defaults to None.
         _salt (bytes, optional): The salt that is used in combination with the key.
             By default, a random file is generated on the machine, but can be set manually.
             Defaults to None.
