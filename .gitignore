@@ -3,6 +3,7 @@
 logs/
 tests/output
 config.ini
+config_bk.ini
 web2.ini
 webconfig.ini
 

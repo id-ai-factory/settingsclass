@@ -250,7 +250,7 @@ def _auto_cast_type(
 
     else:
         # boolのサブクラスは定期不可能
-        if expected_type == bool and not isinstance(config_param_value, bool):
+        if expected_type is bool and not isinstance(config_param_value, bool):
             # 'FALSE', 'False', 'false'のすべてがFalseにする
             if config_param_value.upper() == "FALSE" or config_param_value == "0":
                 param_value_after_cast = False
@@ -332,12 +332,22 @@ def __post_init__(self):
                 setattr(subclass_instance, var_name, dynamicly_set_val)
 
 
+def _class_name_without_path(typ) -> str:
+    if issubclass(typ, _RandomType):
+        return f"{typ.__name__}[{','.join([str(a) for a in typ.__args__])}]"
+    elif issubclass(typ, _TypeWarpper):
+        return f"{typ.__name__}[{_class_name_without_path(typ.__args__[0])}]"
+
+    return f"{typ.__name__}"
+
+
 def __subrepr__(self) -> str:
     subclass_instance = self
     subclass_contents = ""
     for varialbe_name, variable_type in subclass_instance.__annotations__.items():
         variable_value = getattr(subclass_instance, varialbe_name)
-        subclass_contents += f"\n\t{varialbe_name}: {variable_type} = {variable_value}"  # ({type(variable_value)})"
+        vartype_str = _class_name_without_path(variable_type)
+        subclass_contents += f"\n\t{varialbe_name}: <{vartype_str}> = {variable_value}"  # ({type(variable_value)})"
 
     return subclass_contents
 
@@ -515,12 +525,12 @@ def update_from(
     return need_encryption
 
 
-def save_to_file(self, path):
+def save_to_file(self, path=None):
     """Generates a config file to the specified path.
     If the file does not exist, both parent folders and file will be generated
     """
     config = configparser.ConfigParser(allow_no_value=True)
-    return self._save_to_file(path, config)
+    return self._save_to_file(path or self._file_path, config)
 
 
 def _save_to_file(self, path, config):
@@ -829,7 +839,7 @@ def _add_settings_layer(
         _save_to_file,
     ]:
         # _set_qualname(cls, extra_func.__name__)
-        # extra_func.__qualname__ = f"{cls.__qualname__}.{extra_func.__name__}"  # TODO is this necessary? Interferes with inheritance?
+        extra_func.__qualname__ = f"{cls.__qualname__}.{extra_func.__name__}"  # TODO is this necessary? Interferes with inheritance?
         setattr(cls, extra_func.__name__, extra_func)
 
     # add wrapper for easier access
