@@ -9,7 +9,7 @@ unencrypted_data_found_1,"暗号化されていないデータ（{}）が見つ�
 #エラーメッセージ/error messages
 
 file_is_folder_1,"指定されたパスはファイルを指すことが期待されていましたが、フォルダを指しています。：{}。","The path was expected to point to a file, but points to a folder. Path: {}"
-invalid_type_4,"【{0}】セクションのパラメータ【{1}】に対して、【{3}】をタイプ{2}に変換できませんでした。","Could not convert <{3}> to type {2} for parameter <{1}> in section <{0}>"
+invalid_type_4,"【{0}】セクションのパラメータ【{1}】に対して、【{3}】をタイプ{2}に変換できませんでした。","Could not convert '{3}' to type {2} for parameter <{1}> in section <{0}>"
 missing_config_section_1,"セクション【{}】が見つかりませんでした。","The config file is missing section <{}>"
 config_param_missing_2,"セクションのパラメータ【{0}】に【{1}】が見つかりませんでした。","Config file is missing parameter <{1}> in section <{0}>"
 extra_config_sections_1,"設定ファイルに予期しないセクションは使用できません。：{}","The following sections are not in the definition and will be ignored: {}"

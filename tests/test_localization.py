@@ -51,7 +51,7 @@ def filtered_files(
     folder: str,
     extensions: list[str],
     recursive: bool = False,
-    exclude: list[str] = None,
+    exclude: str = None,
 ) -> list[str]:
     """
     フォルダーのすべてのファイルをリストアップする。
@@ -62,6 +62,7 @@ def filtered_files(
             Noneの場合はすべてのファイル対象
             例：画像の場合['png','jpg','bmp']
             例：Pythonファイルの場合：['py']
+        exclude: Regexでは省くパス（フォルダー含めて）
         recursive (bool, optional): 大気的有無. Defaults to False.
 
     Returns:
@@ -76,7 +77,7 @@ def filtered_files(
     collected_files = []
 
     for fname in files:
-        if exclude and fname in exclude:
+        if exclude and regex.match(exclude, fname):
             continue
         _, ext = splitext(fname)
         full_path = join(folder, fname)
@@ -103,7 +104,8 @@ def pyfiles_ast():
     try:
         pyfiles_ast.files
     except AttributeError:
-        files = filtered_files(".", ["py"], exclude=["venv", ".venv"], recursive=True)
+        # starts with venv or .venv
+        files = filtered_files(".", ["py"], exclude="\.*venv.*", recursive=True)
         files = [fn for fn in files if split_path(fn)[-1] not in PYFILE_EXCLUSIONS]
         pyfiles_ast.files = files
 
