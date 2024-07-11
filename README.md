@@ -33,15 +33,18 @@ class WebConfig:
         api_key: Encrypted[str] = ""
         seed: RandomFloat[0, 12345] = 0
 
-# save to or read from "config.ini". Custom path can also be passed
+# Save to or read from "config.ini". Custom path can also be passed
 config = WebConfig()
 
-# RandomInt, RandomFloat and RandomString will generate a value within specified limits
+# Hinting a type as RandomInt, RandomFloat and RandomString will generate
+# will cause the class instantiation to generate a primitive within specified limits
 # The default value after [=] is ignored
-print(config.console.machine_id) # prints a four character string e.g. 4G_b
+m_id = config.console.machine_id 
+print(f'{m_id} w/ {type(m_id)}) # prints a four character <string> e.g. 4G_b
 
-# Encrypted[] return identical of their encased classes, but are encrypted on disk
-dbp =  config.console.debug_pin
+# Instance variables type hinted with Encrypted[type] return objects of their 
+# encapsulated types, but are encrypted when saving to disk
+dbp = config.console.debug_pin
 print(f'{dbp} w/ {type(dbp)}) # prints a 4 digit int e.g. "4521 w/ <class 'int'>"
 
 # The config.ini file will have the value encrypted similar to:
@@ -51,10 +54,12 @@ print(f'{dbp} w/ {type(dbp)}) # prints a 4 digit int e.g. "4521 w/ <class 'int'>
 # next time config = WebConfig() is called
 
 
-# Hidden[] values are not saved/read from the config file, unless already present
+# Hidden[type] variable also generate values of their encapsulated types,
+# and are not saved/read from  the config file, unless already present
 co = config.console.colored_output
 print(f'{co} w/ {type(co)}) # prints "True w/ <class 'bool'>"
 
+# ---
 # Modified instances can be saved to an arbitrary path
 # The default value is the path it was read from
 # Variable types are not enforced when modifying  the class instance, 
@@ -78,11 +83,13 @@ To improve readability, we will define two sections: one for console-related set
 *The code for the explanation below can also be found [here](demo.py)*
 <details>
 <summary><i>A note on naming convention</i></summary>
-The appropriate choice during definition seems to be <code>class Settings</code>/<code>class Section</code> (with a capital), however in during usage it will be called under the same name. Hence, it is an object during most of its usage, therefore the suggested usage is <code>Class Settings</code>/<code>class section</code> (internal lowercase). I did consider changing the case of the name during runtime, but I decided that that would be more confusing, especially when using <code>ClassNamesOfMultipleWords</code> -> <code>class_names_of_multiple_words</code>
+The appropriate choice during definition seems to be <code>class Settings</code>/<code>class Section</code> (with a capital), however in during usage it will be called under the same name. Hence, it is an object during most of its usage, therefore the suggested usage is <code>class Settings</code>/<code>class section</code> (internal lowercase). I did consider changing the case of the name during runtime, but I decided that that would be more confusing, especially when using <code>ClassNamesOfMultipleWords</code> -> <code>class_names_of_multiple_words</code>
 </details>
 
 
 ```
+from settingsclass import settingsclass, RandomString, RandomInt, RandomFloat, Hidden, Encrypted
+
 @settingsclass
 class WebConfig:
     class console:
@@ -99,7 +106,7 @@ class WebConfig:
         # => A random string with a fixed length of 4 characters
 
         # We would like to enable admin access for system-critical information
-        # This should be a long password (at least 14 characters)
+        # This should be a long password (14~20 characters)
         # The generator uses python's secrets library to ensure that it is cryptographically safe
         backdoor_password: Encrypted[RandomString[14, 20]] = ""
         # => Generates a 14 to 20 character encrypted string
@@ -160,7 +167,6 @@ maximum_message_per_second = 5
 [agent]
 api_key = 
 seed = 8881.079
-
 ```
 
 We would like the to have a more easily readable `machine_id`, and the `api_key` is empty at the moment, so we modify the two values in the config.ini file.
@@ -178,7 +184,7 @@ api_key = super_secret_api_key_556
 seed = 8881.079
 ```
 
-If we rerun `config = WebConfig()`, we can observe that our api_key has been encrypted. The already encrypted values have not changed.
+If we re-run `config = WebConfig()`, we can observe that our api_key has been encrypted. The already encrypted values have not changed.
 
 ```
 [console]
@@ -243,7 +249,7 @@ This should print a float value followed by the confirmed float type.
 
 Continuing the scenario, let's say that we have a webpage where the admin can change the machine id. 
 We would like to save to disk as to use the same value after the program restarts.  
-We can do this using the 'settingsclass' member function `save_to_file`.
+We can do this using the `settingsclass` member function `save_to_file`.
 
 For this example, the admin has changed the value to TIG1. The relevant code would have the same affect as below:
 ```
@@ -367,7 +373,7 @@ The most common recommendations for storing settings file are the following, but
        - Difficult to have default and custom values separately
        - Keeping secret keys hidden can be challenging
 
-3. Environmental variables:
+3. Environmental variables
     - Basic Concept:
         - Default values defined inside code, custom values read from the environment
     - Advantages:

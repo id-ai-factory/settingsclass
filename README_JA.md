@@ -2,46 +2,365 @@
 [![Tests Status](./tests/reports/coverage-badge.svg?dummy=8484744)](./tests/reports/www/index.html)  
 
 # settingsclass  
-[dataclass](https://docs.python.org/3/library/dataclasses.html)アプローチに基づく設定オブジェクトとして使用されるクラスの[デコレーター](https://peps.python.org/pep-3129/)。 
+[English Version](README.md)
 
+使いやすいが機能豊富な、Pythonで設定を保存するためのソリューション。
 
-# 中心となるアディア
-設定を保存するための、使いやすく、かつ機能豊富なソリューション。  
-定義と使用方法は [dataclass](https://docs.python.org/3/library/dataclasses.html) と同様ですが、外部【ini】ファイルとの同期や、ランダムな文字列など実行時に生成される値にも対応しています。  
+このライブラリは、変数が設定値となる独自のカスタムクラスをマークするためのデコレータを提供する。以前に[dataclass](https://docs.python.org/3/library/dataclasses.html)を使用したことがある場合は、このライブラリに親しみを感じるだろう。また、外部 ini ファイルとの同期や、[configparser](https://docs.python.org/3/library/configparser.html) バックエンドを使用して ini ファイルと同期する設定用のランダム文字列など、実行時に生成される値にも対応している。
 
-
-# 簡単な運用例
+---
+ 
+# クイックスタート・使用例（1/2）
+この例では、重要な概念のみを説明しており、説明よりも実際に手を動かして試してみたいという方を対象としている。 
+**dataclassやconfigparserについてよく知らない場合や、より詳しい説明を希望する場合は、例2へ進んでください**  
 
 ```
-from settingsclass import settingsclass, Hidden, Encrypted, RandomString, RandomInt, set_language
-
-set_language("ja") # エラーうやログメッセージを日本語に変換する。
+from settingsclass import settingsclass, RandomString, RandomInt, RandomFloat, Hidden, Encrypted
 
 @settingsclass
 class WebConfig:
-    class login:
-        min_passw_len: int = 12 # 普通のint
-        debug_passw: Encrypted[RandomString[16]] = "" # 16文字の暗号化されている文字列を生成する
-        console_colored_output: Hidden[bool] = True # 自動でディスクに格納されない
+    class console:
+        language: str = "en"
+        machine_id: RandomString[4] = ""
+        backdoor_password: Encrypted[RandomString[14, 20]] = ""
+        debug_pin: Encrypted[RandomInt[1000, 9999]] = 0
+        maxiumum_message_per_second: int = 5
+        colored_output: Hidden[bool] = True
 
     class agent:
-        api_key: Encrypted[str] = "" # ファイルの出力は空文字ながら、ユーザーの入力後暗号化し、上書きされる
-        seed: RandomInt[0, 12345] = 0 # 0から12345までの間のランダムな整数を生成する
+        api_key: Encrypted[str] = ""
+        seed: RandomFloat[0, 12345] = 0
+ 
+# 「config.ini」に保存または読み込み。カスタムパスも指定可能。
+config = WebConfig()
 
-config = WebConfig("webconfig.ini") # ファイルが存在しない場合は、ファイルが作成される。ファイルが存在する場合は、ファイル内に保存されている値が上記の既定値として使用される
+# 型の指定を RandomInt、RandomFloat、RandomString とすると、
+# クラスインスタンス化の際、指定された範囲内でプリミティブが生成される
+[=] の後のデフォルト値は無視される
+m_id = config.console.machine_id 
+print(f'{m_id} w/ {type(m_id)}) # <string>型の4文字長さの文字列を出す、例： 4G_b
 
-print(config) # 設定ファイル全体を人間が読める形式で表示
+# インスタンス変数は、Encrypted[type] オブジェクトで型がヒントされるが、 
+# エンカプセル化された型を持つオブジェクトを返すが、ディスクに保存する際は暗号化される
+dbp = config.console.debug_pin
+print(f'{dbp} w/ {type(dbp)}) # 4桁の整数を表示。例：「4521 w/ <class 'int'>」
 
-def foo(x: int):  # ユーザー関数のプレースホルダ
-    print(f"Value {x} with type {type(x)}")
+# config.ini ファイルには、encrypted の値として次のような値が設定される。
+# debug_pin = ?ENC22e6de0f80d81f54fbae752d27cd5663e693758554d3520466e7c90423fd3997
 
-foo(config.agent.seed)  # 変数は【int】型であることが保証されている
-config.agent.seed = 11 # 値は通常通り設定でき、値はインスタンス間で共有されない
+# iniファイルに新しいカスタム値を指定することもでき、その値は次にconfig = WebConfig()が呼び出されたときに暗号化される。
+# config = WebConfig() が次に呼び出されたときに暗号化される。
 
-# conf.set_language("ja") # 言語設定は共通です
+# 隠された[型]変数も、カプセル化された型の値を生成し、
+# すでに存在していない限り、設定ファイルに保存されたり読み込まれたりすることはない。
+co = config.console.colored_output
+print(f'{co} w/ {type(co)}) # プリント結果： "True w/ <class 'bool'>"
+
+# --
+# すでに存在していない限り、configファイルから# 隠された[]値は保存/読み込まれない
+co = config.console.colored_output
+print(f'{co} w/ {type(co)}) # プリント結果： "True w/ <class 'bool'>"
+
+# 変更されたインスタンスは任意のパスに保存できる
+# デフォルト値は、読み込み元のパスである
+# クラスインスタンスを変更する際は、変数の型は強制されない。
+# クラスインスタンスの修正時には、ディスクからの読み込み時のみ、
+config.agent.seed = "foo"
+config.save_to_file("config2.ini")
+
+config2 = WebConfig("config2.ini") # エージェント/シードの型不一致警告を表示する
+print(config2.agent.seed) # ランダムな数字、例えば「4281.154」を Float 型で表示
+``````
+ 
+# 詳細な使用例 (2/2)
+
+ログイン機能を備えたチャットアプリケーションを開発し、サーバーに導入しようとしているが、環境に応じて設定を変更できるようにしたいとする。Pythonに精通していない人でも理解できる設定ファイルに保存し、そこから読み込むのが理想的だろう。 
+
+### クラス定義
+可読性を高めるため、コンソール関連の設定とチャットエージェントの設定の2つのセクションを定義する。 
+
+
+以下の説明のコードは、[こちら](demo_jp.py)でもご覧いただけます*
+<details>
+<summary><i>命名規則に関する注記</i></summary>
+定義時には<code>class Settings</code>/<code>class Section</code>（大文字）が適切と思われるが、使用時には同じ名前で呼ばれる。したがって、ほとんどの使用時にはオブジェクトとなるため、<code>class Settings</code>/<code>class section</code>（内部小文字）の使用が推奨される。実行時に名前の大文字小文字を変更することも検討したが、特に<code>ClassNamesOfMultipleWords</code> -> <code>class_names_of_multiple_words</code>を使用する場合は、かえって混乱を招くと考えた。
+</details>
+
+
+```
+from settingsclass import settingsclass, RandomString, RandomInt, RandomFloat, Hidden, Encrypted, set_language
+ 
+# まずはコンソールの出力言語を日本語に設定しよう
+set_language("ja")
+
+@settingsclass
+class WebConfig:
+    class console:
+        # 複数の言語をサポートするための設定
+        # 言語コードを文字列として保存される
+        # デフォルトでは日本語に設定されている。
+        language: str = "ja"
+        # => 初期値が「ja」の文字列にされる
+
+        # クラウド上のマシンを一般的なログデータベースで簡単に識別ができると嬉しい
+        # そのため、マシンをデプロイする際に設定される短い文字列を追加する
+        # 忘れた場合に備えて、4文字の文字列を設定する 
+        machine_id: RandomString[4] = ""
+        # => 4文字の固定長ランダムな文字列
+
+        # Web画面からシステムに重要な情報を操作するためのパスワードが必用
+        # これは長い文字列（14～２０文字）で生成初期化する
+        # 生成器は、暗号学的安全性を確保するために、Pythonのsecretsライブラリを使用している
+        backdoor_password: Encrypted[RandomString[14, 20]] = ""
+        # => 14～20文字の暗号化された文字列を生成する
+        # ユーザーがマシンごとに使用するカスタムパスワードを作成したい場合は、
+        # 希望する値を設定ファイルに編集する。コードが変更後に初めて実行されると 
+        # 変更後に初めてコードが実行される際、値は暗号化され、元のファイルは
+        # 書き換えられる
+
+        # セキュリティレベルが低いエリアでは、4桁の暗証番号で十分である。
+        debug_pin: Encrypted[RandomInt[1000, 9999]] = 0
+        # => 4桁の整数が生成される
+
+        # コンソールに表示されるメッセージが多すぎると、実行速度が低下する可能性がある。
+        # そのため、環境に応じて後で変更できる制限値が設定されている。
+        maximum_message_per_second: int = 5
+        # => デフォルト値が 5 の整数
+
+        # 環境によっては、コンソール出力に色が付いていると、
+        # ANSI エスケープコードが文字コードとして表示されるため、表示テキストが変更されず、
+        # 表示されるテキストを変更するのではなく、ANSI エスケープコードが文字コードとして
+        # 表示される可能性があるため、これを無効にするオプションが役に立つかもしれない。
+        # しかし、このようなケースはまれであるため、このオプションを常に表示しておくと可読性が損なわれる可能性がある。
+        colored_output: Hidden[bool] = True
+        # => オブジェクトインスタンスは真（True）のブール値を持つが、 
+        # ディスクに保存されることはない。ディスクから読み込まれたり、ディスクに書き込まれたりするのは、 
+        # 設定ファイルにセクションと変数がすでに含まれている場合のみ、 
+
+    class agent:
+        # APIキーは暗号化すべきだが、デフォルト値の設定は不可能なので、 
+        # 空文字列に設定される。
+        api_key: Encrypted[str] = ""
+        # => 最初は空文字列のみが保存されるが、INIファイルが変更されると、
+        # 暗号化済みの値で上書きされる。
+
+        # いくつかのランダム要素に使用されるシードは、再現性を確保するために設定可能にするべきだが、
+        # ただし、それ以外の値であれば何でも構わない。プログラムを再起動した際に再生成する必要はない。
+        seed: RandomFloat[0, 12345] = 0
+        # => 0 から 12345 までの間のランダムな浮動小数点を生成する
+
+```
+
+ 
+## ディスク入出力と変数タイプ
+次に、.ini ファイルと一致させ、後でカスタム値を設定できるようにしたい。 
+このケースでは、設定ファイル名は関係ないので、デフォルト値（config.ini）のままにします。
+
 ``` 
+config = WebConfig()
+```
 
-*全機能紹介は[こちら](demo.py)*をご覧ください。*
+完了！生成されたファイルの内容を確認すると、次のような内容になっている。
+
+```
+[console]
+language = en
+machine_id = b8_Q
+backdoor_password = ?ENC5d51bb10d835ff680ce50c99dc512678cb6cb3525d18129a56c7b417c6847339790dbe0cd264ca201a7b82a0dbb4c130
+debug_pin = ?ENC7cac31ac5bb2a5a6078d770b17a5a6728766adafa43409a2917b0c09903fcce5
+maximum_message_per_second = 5
+
+[agent]
+api_key = 
+seed = 8881.079
+```
+
+`machine_id` はより読みやすいものに変更したい。また、`api_key` は現在空欄なので、config.ini ファイル内の二つの値を変更する。
+
+
+```
+[console]
+language = en
+machine_id = GIT0
+backdoor_password = ?ENC5d51bb10d835ff680ce50c99dc512678cb6cb3525d18129a56c7b417c6847339790dbe0cd264ca201a7b82a0dbb4c130
+debug_pin = ?ENC7cac31ac5bb2a5a6078d770b17a5a6728766adafa43409a2917b0c09903fcce5
+maximum_message_per_second = 5
+
+[agent]
+api_key = super_secret_api_key_556
+seed = 8881.079
+```
+
+`config = WebConfig()`を再度実行すると、api_key が暗号化されていることが確認できる。すでに暗号化されている値は変更されていない。
+
+```
+[console]
+language = en
+machine_id = GIT0
+backdoor_password = ?ENC5d51bb10d835ff680ce50c99dc512678cb6cb3525d18129a56c7b417c6847339790dbe0cd264ca201a7b82a0dbb4c130
+debug_pin = ?ENC7cac31ac5bb2a5a6078d770b17a5a6728766adafa43409a2917b0c09903fcce5
+maximum_message_per_second = 5
+
+[agent]
+api_key = ?ENCd60d7fad60db92ace78261377c629ebad7926916bcae90a4a8aea5a2c296e4f8c7119229d88546374b0ce857fb8e332e
+seed = 8881.079
+```
+
+
+クラス全体またはセクションの1つだけを印刷することも可能だ。データは平文形式で復号化されるため、ログ記録時にはデータの取り扱いには注意が必要である。セクションの内容のみを確認したい場合は以下を使う。
+
+```
+print(f"Complete class:\n{config}")
+print("----+++----")
+print(f"A section only:\n{config.agent}")
+```
+
+とその結果は：
+
+```
+Complete class:
+SettingsClass [WebConfig]:
+console: 
+	language: <str> = en
+	machine_id: <RandomString[4]> = YM5W
+	backdoor_password: <Encrypted[RandomString[14,20]]> = Qt15Jk0jprCwqFQQs2ob
+	debug_pin: <Encrypted[RandomInt[1000,9999]]> = 1516
+	maximum_message_per_second: <int> = 5
+	colored_output: <Hidden[bool]> = True
+ agent: 
+	api_key: <Encrypted[str]> = 
+	seed: <RandomFloat[0,12345]> = 8796.928
+ 
+----+++----
+A section only:
+WebConfig section: [agent]
+	api_key: <Encrypted[str]> = 
+	seed: <RandomFloat[0,12345]> = 8796.928
+```
+
+変数型は、単純な型とランダムな値の両方で保証されており、他の変数と同様に扱うことができる。 
+以下のコードを実行することで、それを確認しよう。
+
+```
+def print_val_and_type(x: int):  # Placeholder for user function
+    print(f"{type(x)} 型の値は：{x} ")
+
+print_val_and_type(config.agent.seed)  
+```
+
+以上は、浮動小数点型の値とその型を出力します。
+
+`<class 'float'> 型の値は：8796.928`
+
+*浮動小数点の精度は、`RandomFloat[0, 2, precision=5]`という精度パラメータを使用することで設定できる*
+
+### 手動保存
+
+ 
+シナリオを続けると、管理者がマシンIDを変更できるウェブページがあるとしよう。
+プログラムを再起動した後も、同じ値を使用できるようにディスクに保存しておきたい。 
+この処理は、`settingsclass` メンバ関数 `save_to_file` を使用して行うことができる。
+
+この例では、管理者が値を TIG1 に変更している。関連するコードは、以下のコードと同じ効果を持つ。
+
+```
+config.console.machine_id = "TIG1"
+```
+
+上記のコードを実行しても、メモリ内のオブジェクトが変更されるだけで、iniファイルとは自動的に同期されるためsave関数は手動で呼び出す。
+
+```
+# 保存する前にバックアップを取る
+config.save_to_file("config_bk.ini")
+
+# 元のファイルを上書きする
+config.save_to_file()
+```
+
+
+iniファイルとPythonオブジェクトの両方に変更が反映されているはずだ。 
+上記のコードが示すように、`save_to_file` はパラメータなしで呼び出すことができ、その場合、元のファイルが上書きされる。
+
+2つのファイルで変更された値を確認しよう。
+
+```
+old_value = config.console.machine_id # int型なので、コピーなどは必要ない
+
+# ディスクから際読み込む
+config = WebConfig()
+verify_value = config.console.machine_id 
+
+# バックアップした値を読み込む
+config_bk = WebConfig("config_bk.ini")
+
+# 値を比べる
+print(f"メモリー内の値： {old_value}")
+print(f"際読み込んだ値： {config.console.machine_id}")
+print(f"バックアップの値： {config_bk.console.machine_id}")
+```
+
+## タイプチェック
+
+前節では、型ヒントが string 型として指定されている変数に string 型の値を代入した。ここでは、型を誤って int 型として指定されている変数に string 型の値を代入してしまうシナリオを見てみよう。 
+
+```
+config.agent.seed = "abcd"
+config.save_to_file()
+```
+
+Pythonなので、さすがに変数代入時のタイプチェックは行われない。しかし、ディスクから値を読み込む際にはチェックされる。これを確認するために、もう一度ディスクからファイルの内容を読み込んでみよう。
+
+```
+config = WebConfig()
+```
+
+下記のようなタイプをキャストできないことについて、警告メッセージがポップアップ表示されるはずです。
+
+```
+2024-XX-YY HH:MM:SS.MSS | WARNING  | settingsclass.settingsclass:_set_members:753 - 【agent】セクションのパラメータ【seed】に対して、【abcd】をタイプ<class 'float'>に変換できませんでした。
+```
+
+実際に設定されている値を確認すると、新しく生成されたランダムな値であることがわかる。
+
+```
+print(config.agent.seed)
+```
+
+`11392.713`のようなが出力される。
+
+その逆の場合、変数を文字列として暗示しているが、実際にはintを使用するというケースも考えられます。この場合、意図的な可能性があるため、警告が表示されますが、値自体は変更されません。
+
+これをシミュレートするために、以下の値を設定する。実際には、言語をリスト内のインデックスとして定義し、マシンIDを表示または非表示にしたかった。もう1つの可能性は、config.iniファイルで値が表すものを間違えていることである。どちらの場合でも結果は同じであり、以下のコードを実行することで何が起こるかを確認できる。iniファイルで値を変更した場合も、同じことが起こる。
+
+
+```
+config.console.language = 3
+config.console.machine_id = False
+
+config.save_to_file()
+```
+
+ディスクに保存されたら、警告が表示される。
+
+```
+config = WebConfig()
+
+lang = config.console.language
+m_id = config.console.machine_id
+print(f"Lang = {lang} ；変数型： {type(lang)}")
+print(f"Password = {m_id} ；変数型： {type(lang)}")
+```
+
+コードの出力は、潜在的な型不一致に関する2つの警告となるが、最終的には変数の型と値は影響を受けない。
+
+2024-XX-YY HH:MM:SS.MSS | DEBUG    | settingsclass.settingsclass:_load_settings_init:635 - 以下のファイルから設定を読み込みます。：config.ini
+2024-XX-YY HH:MM:SS.MSS | WARNING  | settingsclass.settingsclass:warn_confusing_types:576 - 設定ファイルの【console】セクション【language】の【3】値を設定されているパラメーターは文字列ですが、intに見えます。
+2024-XX-YY HH:MM:SS.MSS | WARNING  | settingsclass.settingsclass:warn_confusing_types:560 - 設定ファイルの【console】セクション【machine_id】の【False】値を設定されているパラメーターは文字列ですが、boolに見えます。
+Lang = 3 ；変数型： <class 'str'>
+Password = False ；変数型： <class 'str'>
+
+## 詳細設定
+特定の使用ケースでは、カスタム暗号化アルゴリズムの使用やRandomFloatの精度の設定など、より高度な設定を使用したい場合がある。[全機能リスト](#full-feature-list)を参照のこと。
 
 # 存在意義
 
@@ -75,7 +394,7 @@ config.agent.seed = 11 # 値は通常通り設定でき、値はインスタン�
        - デフォルト値とカスタム値を個別に設定することが困難です
        - 秘密鍵を隠しておくのは難しい場合があります
 
-3. 環境変数：
+3. 環境変数
     - 基本概念：
         - デフォルト値はコード内で定義され、カスタム値は環境から読み取られます
     - メリット:
@@ -221,7 +540,7 @@ configparser ハンドラは、大文字小文字の設定などを含め、ユ�
 
 # 完全な例
 
-print文を使用した詳細な使用例シナリオは、[demo.py](demo.py)内に記載されています。
+print文を使用した詳細な使用例シナリオは、[demo_jp.py](demo_jp.py)内に記載されています。
 
 生成された ini ファイルは、以下のようになります。暗号化されている値は異なります。
 

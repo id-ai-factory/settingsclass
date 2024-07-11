@@ -1,6 +1,6 @@
 # %%
 
-# The code has several sections with chaning variables and input/output files
+# The code has several sections with chaining variables and input/output files
 # As such, it is recommended to run the file in sections while looking at
 # the object values and file contents
 
@@ -17,9 +17,10 @@ from settingsclass import (
 
 # %% Checking the environment
 
-# IF the test is run multiple times, the results will not match the exaplanation,
+# If the test is run multiple times, the results will not match the explanation,
 # since there is an overwrite step included
-import os
+
+import os  # noqa
 
 if os.path.exists("config.ini"):
     raise NotImplementedError(
@@ -173,7 +174,7 @@ config.save_to_file()
 # One of them looks like an int, the other looks like a boolean
 config = WebConfig()
 
-# If this is intented, we can ignore the message as the values are unaffected
+# If this is intended, we can ignore the message as the values are unaffected
 lang = config.console.language
 m_id = config.console.machine_id
 print(f"Lang = {lang} of type {type(lang)}")
