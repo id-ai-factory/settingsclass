@@ -48,7 +48,7 @@ def test_lang_change():
 
     with pytest.raises(
         AttributeError,
-        match=r"指定された言語は存在しません。Requested language does not exist: qx \(可能／avaiable: ja・en\)",
+        match=r"指定された言語は存在しません。Requested language does not exist: qx \(可能／available: ja・en\)",
     ):
         set_language("qx")
     assert current_language() == "en"

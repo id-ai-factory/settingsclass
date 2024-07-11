@@ -5,7 +5,7 @@ from settingsclass.settingsclass import (
     RandomInt,
     Encrypted,
     Hidden,
-    availalbe_languages,
+    available_languages,
     set_language,
 )
 
@@ -16,6 +16,6 @@ __all__ = [
     "RandomFloat",
     "Encrypted",
     "Hidden",
-    "availalbe_languages",
+    "available_languages",
     "set_language",
 ]

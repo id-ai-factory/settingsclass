@@ -17,10 +17,10 @@ extra_config_parameter_2,"設定ファイルの【{0}】セクションに予期
 param_type_is_string_but_looks_x_4,"設定ファイルの【{}】セクション【{}】の【{}】値を設定されているパラメーターは文字列ですが、{}に見えます。","The parameter <{}> in section <{}> with value {} of the settings file is a string but looks like a {}"
 cannot_convert_to_bool_1,"【{}】の値をbooleanに変換できませんでした。","Could not convert the value of <{}> to a boolean."
 unexpected_class_found_2,"予期されない型が見つかりました。：{}{}。GenericAliasを継承するクラスは_RandomTypeまたは_TypeWrapperも継承する必要があります。","Unexpected type found in: {}/{}. Classes inheriting GenericAlias should also inherit _RandomType or _TypeWrapper."
-invalid_encrpytion_key_type_1,"暗号化キーの型が不正です：{}。使用可能なタイプは【None】・【str】・【tuple[Callable]】。Tupleの場合は【暗号化関数、複合化関数】の順番が必用","{} has been provided but only types str, None and tuple[Callable] can be used as encryption keys. In case of tuple, the first callable should handle encryption, with the second handling decrpytion"
+invalid_encryption_key_type_1,"暗号化キーの型が不正です：{}。使用可能なタイプは【None】・【str】・【tuple[Callable]】。Tupleの場合は【暗号化関数、複合化関数】の順番が必用","{} has been provided but only types str, None and tuple[Callable] can be used as encryption keys. In case of tuple, the first callable should handle encryption, with the second handling decrpytion"
 could_not_decode_string_1,"ファイルのデコードに失敗しました。ファイルが壊れている可能性があります：{}","Failed to decode the file. The file may be corrupted: {}"
 function_can_only_be_called_on_randomtype_1,"この関数は_RandomTypeのみで呼び出すことができます：{}","This function can only be called on _RandomType: {}"
-keyfile_location_unaccessable_1,"キーファイルの場所にアクセスできません。代わりに文字列または呼び出し可能なキーで指定してください：{}","The keyfile location is unaccessable. Please provide a string or callable key instead: {}"
+keyfile_location_unaccessible_1,"キーファイルの場所にアクセスできません。代わりに文字列または呼び出し可能なキーで指定してください：{}","The keyfile location is unaccessable. Please provide a string or callable key instead: {}"
 
 #UT
 ##設定モジュール/Settings module

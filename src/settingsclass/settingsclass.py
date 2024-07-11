@@ -6,7 +6,7 @@ Created on Thu May 11 16:54:34 2023
 """
 
 # %% Imports
-# from __future__ import annotations  # do NOT use! Makes strings become uncallable
+# from __future__ import annotations  # do NOT use! Makes strings become un-callable
 
 from dataclasses import dataclass
 from Crypto.Cipher import AES
@@ -36,8 +36,8 @@ _key_lock = Lock()
 ClassType = TypeVar("ClassType")
 
 
-def availalbe_languages():
-    """Returns the avaiable logging and error message languages"""
+def available_languages():
+    """Returns the available logging and error message languages"""
     return ("ja", "en")
 
 
@@ -45,7 +45,7 @@ def set_language(lang: str):
     """Changes the language and error messages
 
     Args:
-        lang (str): Two character code of the language see <avaialbe_languages>
+        lang (str): Two character code of the language see <available_languages>
     """
     _set_language(lang)
 
@@ -80,7 +80,7 @@ def _load_key(plain_filename: str, parent_dir: str = None):
             with open(full_path, "wb") as f:
                 f.write(key_content)
     except PermissionError as ex:
-        logger.error(error_string := tr("keyfile_location_unaccessable_1", full_path))
+        logger.error(error_string := tr("keyfile_location_unaccessible_1", full_path))
         raise PermissionError(error_string) from ex
 
     return key_content
@@ -133,7 +133,7 @@ def _is_encoded(message: str):
     return len(message) > len(ENC_PREFIX) and message[: len(ENC_PREFIX)] == ENC_PREFIX
 
 
-class _TypeWarpper:
+class _TypeWrapper:
     def __class_getitem__(cls, item):
         # class Secret[Generic]: # req. python>=3.12
         return GenericAlias(cls, item)
@@ -147,11 +147,11 @@ class _Hidden:  # TODO change to expected_type.__origin__
     pass
 
 
-class Encrypted(_TypeWarpper, _Encrypted):
+class Encrypted(_TypeWrapper, _Encrypted):
     pass
 
 
-class Hidden(_TypeWarpper, _Hidden):
+class Hidden(_TypeWrapper, _Hidden):
     pass
 
 
@@ -169,7 +169,7 @@ class RandomString(str, _RandomType):
         *,
         random_function: Callable = secrets.token_urlsafe,
     ):
-        """the random function should take one parameter, and return a string at least the length of the stirng"""
+        """the random function should take one parameter, and return a string at least the length of the string"""
 
         if max_length < min_length:
             min_length, max_length = max_length, min_length
@@ -233,7 +233,7 @@ def _auto_cast_type(
                 param_value_after_cast = expected_type.__base__(config_param_value)
 
         # HiddenやEncryptedの場合はクラスで定義している値をとる
-        elif issubclass(expected_type, _TypeWarpper):
+        elif issubclass(expected_type, _TypeWrapper):
             # 値確認のためキャストする
             param_value_after_cast = _auto_cast_type(
                 expected_type.__args__[0], config_param_value, force_random=force_random
@@ -268,7 +268,7 @@ def _auto_cast_type(
 def user_friendly_type_name(typ):
     """Returns <float> instead of __main__.RandomFloat[5] etc."""
     friendly_type = typ
-    if issubclass(typ, _TypeWarpper):
+    if issubclass(typ, _TypeWrapper):
         friendly_type = typ.__args__[0]
     elif issubclass(typ.__origin__, _RandomType):
         friendly_type = typ.__base__
@@ -326,16 +326,16 @@ def __post_init__(self):
             setattr(self, member_name, subclass_instance)
             for var_name, var_type in subclass_instance.__annotations__.items():
                 var_value = getattr(subclass_instance, var_name)
-                dynamicly_set_val = _auto_cast_type(
+                dynamically_set_val = _auto_cast_type(
                     var_type, var_value, force_random=True
                 )
-                setattr(subclass_instance, var_name, dynamicly_set_val)
+                setattr(subclass_instance, var_name, dynamically_set_val)
 
 
 def _class_name_without_path(typ) -> str:
     if issubclass(typ, _RandomType):
         return f"{typ.__name__}[{','.join([str(a) for a in typ.__args__])}]"
-    elif issubclass(typ, _TypeWarpper):
+    elif issubclass(typ, _TypeWrapper):
         return f"{typ.__name__}[{_class_name_without_path(typ.__args__[0])}]"
 
     return f"{typ.__name__}"
@@ -344,10 +344,10 @@ def _class_name_without_path(typ) -> str:
 def __subrepr__(self) -> str:
     subclass_instance = self
     subclass_contents = ""
-    for varialbe_name, variable_type in subclass_instance.__annotations__.items():
-        variable_value = getattr(subclass_instance, varialbe_name)
+    for variable_name, variable_type in subclass_instance.__annotations__.items():
+        variable_value = getattr(subclass_instance, variable_name)
         vartype_str = _class_name_without_path(variable_type)
-        subclass_contents += f"\n\t{varialbe_name}: <{vartype_str}> = {variable_value}"  # ({type(variable_value)})"
+        subclass_contents += f"\n\t{variable_name}: <{vartype_str}> = {variable_value}"  # ({type(variable_value)})"
 
     return subclass_contents
 
@@ -360,21 +360,21 @@ def __repr__(self) -> str:
 
             subclass_contents = __subrepr__(subclass_instance)
             concated_str += f"{subclass_name}: {subclass_contents}\n "
-            # TODO finish after shadowing with isntances
+            # TODO finish after shadowing with instances
     return concated_str
 
 
 def _encrypt_field(
     message, encryption_key: tuple[Callable, Callable] | str, salt: bytes = None
 ):
-    """Encrpyts the field choosing a method depending on the encrpytion key"""
+    """Encrypts the field choosing a method depending on the encryption key"""
     if isinstance(encryption_key, tuple):
         message = encryption_key[0](message)
     elif encryption_key is None or isinstance(encryption_key, str):
         message = encrypt_message(message, encryption_key, salt)
     else:
         raise NotImplementedError(
-            tr("invalid_encrpytion_key_type_1", type(encryption_key))
+            tr("invalid_encryption_key_type_1", type(encryption_key))
         )
     return message
 
@@ -382,14 +382,14 @@ def _encrypt_field(
 def _decrypt_field(
     message, encryption_key: tuple[Callable, Callable] | str, salt: bytes = None
 ):
-    """Decrpyts the field choosing a method depending on the encrpytion key"""
+    """Decrypts the field choosing a method depending on the encryption key"""
     if isinstance(encryption_key, tuple):
         message = encryption_key[1](message)
     elif encryption_key is None or isinstance(encryption_key, str):
         message = decrypt_message(message, encryption_key, salt)
     else:
         raise NotImplementedError(
-            tr("invalid_encrpytion_key_type_1", type(encryption_key))
+            tr("invalid_encryption_key_type_1", type(encryption_key))
         )
     return message
 
@@ -400,10 +400,10 @@ def _safe_decrypt_field(
     encryption_key: tuple[Callable, Callable] | str,
     salt: bytes,
 ) -> str:
-    """Decrpyts the target field swhile only logging ValueError, UnicodeDecodeError exceptions"""
+    """Decrypts the target fields while only logging ValueError, UnicodeDecodeError exceptions"""
     true_val = message[len(ENC_PREFIX) :]
     try:
-        # Both parts can throus\w Valuerror, the user-facing message is the same
+        # Both parts can throws\w ValuError, the user-facing message is the same
         true_val = bytes.fromhex(true_val)
         message = _decrypt_field(true_val, encryption_key, salt)
     except (ValueError, UnicodeDecodeError):
@@ -477,14 +477,14 @@ def update_config(self, config: configparser.ConfigParser) -> None:
 
 
 def update_from(
-    self, config: configparser.ConfigParser, ecnrypted_only: False
+    self, config: configparser.ConfigParser, encrypted_only: False
 ) -> list[str]:
     """Overwrites current values with values contained in the specified config object
 
     Args:
         config (configparser.ConfigParser): ConfigParser object.
             User is responsible for population, case-sensitivity settings etc.
-        ecnrypted_only (False): Only copies values that are of type Encrpyted
+        encrypted_only (False): Only copies values that are of type Encrypted
 
     Returns:
         list[str]: list of values that should have been encrypted in the ConfigParser object
@@ -495,7 +495,7 @@ def update_from(
         section for section in config if section != "DEFAULT"
     ]
 
-    if ecnrypted_only:
+    if encrypted_only:
         raise NotImplementedError()  # TODO
 
     # 期待のクラスを反復処理する
@@ -529,7 +529,10 @@ def save_to_file(self, path=None):
     """Generates a config file to the specified path.
     If the file does not exist, both parent folders and file will be generated
     """
-    config = configparser.ConfigParser(allow_no_value=True)
+    if path and path != self._file_path:
+        config = configparser.ConfigParser(allow_no_value=True)
+    else:
+        config = self._config
     return self._save_to_file(path or self._file_path, config)
 
 
@@ -538,8 +541,8 @@ def _save_to_file(self, path, config):
     parent_dir = os.path.dirname(path)
     if parent_dir and not os.path.exists(parent_dir):
         os.makedirs(parent_dir)
-    with open(path, "w", encoding="utf-8") as configfile:
-        config.write(configfile)
+    with open(path, "w", encoding="utf-8") as config_file:
+        config.write(config_file)
 
 
 def warn_confusing_types(value: Any, section_name: str, parameter_name: str) -> None:
@@ -553,7 +556,7 @@ def warn_confusing_types(value: Any, section_name: str, parameter_name: str) -> 
     Args:
         value (Any): The value of the option
         section_name (str): name of the section in the config file
-        parameter_name (str): name of the option insde the config section
+        parameter_name (str): name of the option inside the config section
     """
     if isinstance(value, str):
         if value.upper() in ("TRUE", "FALSE"):
@@ -607,7 +610,7 @@ def _load_settings_init(
     """
 
     # flow: <file exists?> YES -> [read file (Config)] -> [Enforce Types (w/ warnings)] -> [Convert to Settings]
-    #                      NO  -> [init values (Config)] -> [Enforce Types] (w/out warnigns)]-> [Convert to Settings]
+    #                      NO  -> [init values (Config)] -> [Enforce Types] (w/out warnings)]-> [Convert to Settings]
 
     # メモリーのみの設定
     if not path:
@@ -634,7 +637,7 @@ def _load_settings_init(
             # 通常に存在する場合
             logger.debug(tr("loading_settings_from_1", path))
             config.read(path, encoding="utf-8")
-            need_encryption = self.update_from(config, ecnrypted_only=False)
+            need_encryption = self.update_from(config, encrypted_only=False)
         else:
             # config.iniはフォルダーである可能性はある
             raise IsADirectoryError(tr("file_is_folder_1", path))
@@ -648,6 +651,7 @@ def _load_settings_init(
     self.update_from_env()
 
     self._file_path = path
+    self._config = config
 
 
 # %%
@@ -711,7 +715,7 @@ def _set_members(
     # 使用されていないパラメーターを見つかるため
     config_section_parameter_names = list(config_section)
 
-    need_encrpytion = []
+    need_encryption = []
     # 例：[('lang','ja'),'verbosity','DEBUG')...]
     for (
         parameter_name,
@@ -741,7 +745,7 @@ def _set_members(
                             )
 
                         elif config_param_value:
-                            need_encrpytion.append(parameter_name)
+                            need_encryption.append(parameter_name)
 
                     try:
                         param_value_after_cast = _auto_cast_type(
@@ -789,7 +793,7 @@ def _set_members(
                 config_section_parameter_names,
             )
         )
-    return need_encrpytion
+    return need_encryption
 
 
 # %%
@@ -809,8 +813,8 @@ def _add_settings_layer(
             e.g config.ui.color -> UI_COLOR
         common_encryption_key (type[str  |  tuple[Callable[[Any], str]]  |  None], optional):
             Key used to encrypt values. If no key is set when using the class constructor,
-            this value is used. If you do not wish to use the default encrpyiton method,
-            you can also defy a tuple of encrpytion and decryption functions.
+            this value is used. If you do not wish to use the default encryption method,
+            you can also defy a tuple of encryption and decryption functions.
             Defaults to None.
         salt (bytes, optional): The salt that is used in combination with the key.
             By default, a random file is generated on the machine, but can be set manually.
@@ -843,7 +847,7 @@ def _add_settings_layer(
         setattr(cls, extra_func.__name__, extra_func)
 
     # add wrapper for easier access
-    for static_func in (availalbe_languages, set_language):
+    for static_func in (available_languages, set_language):
         setattr(cls, static_func.__name__, staticmethod(static_func))
 
     cls = dataclass(cls)
@@ -892,8 +896,8 @@ def settingsclass(
             e.g config.ui.color -> UI_COLOR
         encryption_key (type[str  |  Callable[[Any], str]  |  None], optional):
             Key used to encrypt values. Takes priority over decorator setting
-            this value is used.If you do not wish to use the default encrpyiton method,
-            you can also defy a tuple of encrpytion and decryption functions.
+            this value is used.If you do not wish to use the default encryption method,
+            you can also defy a tuple of encryption and decryption functions.
             Defaults to None.
         _salt (bytes, optional): The salt that is used in combination with the key.
             By default, a random file is generated on the machine, but can be set manually.

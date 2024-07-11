@@ -30,7 +30,7 @@ from src.settingsclass.settingsclass import (
     RandomString,
     Encrypted,
     Hidden,
-    availalbe_languages,
+    available_languages,
     _encrypt_field,
     _decrypt_field,
     _load_key,
@@ -102,8 +102,8 @@ class Settings:
 # %% Test loc wrapper functions
 
 
-def test_availalbe_languages():
-    av_lang = availalbe_languages()
+def test_available_languages():
+    av_lang = available_languages()
     assert isinstance(av_lang, tuple)
     assert len(av_lang) >= 2
 

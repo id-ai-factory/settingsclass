@@ -105,7 +105,7 @@ def set_language(language: str) -> None:
     else:
         raise AttributeError(
             "指定された言語は存在しません。Requested language does not exist: "
-            + f"{language} (可能／avaiable: {'・'.join(list(tr.words.keys()))})"
+            + f"{language} (可能／available: {'・'.join(list(tr.words.keys()))})"
         )
 
 
