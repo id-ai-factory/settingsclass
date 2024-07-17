@@ -1,12 +1,13 @@
-[![Python Tests](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml/badge.svg)](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml)
+![image](https://github.com/user-attachments/assets/16ff1e5a-bf35-412c-9dc2-65bc98f9661e)[![Python Tests](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml/badge.svg)](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml)
 [![Tests Status](./tests/reports/coverage-badge.svg?dummy=8484744)](./tests/reports/www/index.html)  
 
 # settingsclass  
 [English Version](README.md)
 
-使いやすいが機能豊富な、Pythonで設定を保存するためのソリューション。
+使いやすさと豊富な機能を兼ね備えた、Pythonで使用する設定を保存するためのソリューション。
 
-このライブラリは、変数が設定値となる独自のカスタムクラスをマークするためのデコレータを提供する。以前に[dataclass](https://docs.python.org/3/library/dataclasses.html)を使用したことがある場合は、このライブラリに親しみを感じるだろう。また、外部 ini ファイルとの同期や、[configparser](https://docs.python.org/3/library/configparser.html) バックエンドを使用して ini ファイルと同期する設定用のランダム文字列など、実行時に生成される値にも対応している。
+このライブラリは、変数を設定値として扱う独自のカスタムクラスをマークするためのデコレータを提供します。もし以前に[dataclass](https://docs.python.org/3/library/dataclasses.html)を使用したことがあるなら、このライブラリに親しみを感じるでしょう。また、外部のiniファイルとの同期や、[configparser](https://docs.python.org/3/library/configparser.html) バックエンドを使用してiniファイルと同期する設定用のランダム文字列など、実行時に生成される値にも対応しています。
+
 
 ---
  
