@@ -13,6 +13,7 @@ from os import makedirs, environ, listdir
 from contextlib import contextmanager
 import re
 from secrets import token_bytes
+import platform
 
 from configparser import DuplicateSectionError, DuplicateOptionError
 import logging
@@ -577,8 +578,9 @@ def test_settings_is_folder():
 
 
 def test_unaccessible_location():
-    with pytest.raises(PermissionError):
-        _ = _load_key("kf.kf", f"{RandomString(10)}:\\")
+    if platform.system() == "Windows":
+        with pytest.raises(PermissionError):
+            _ = _load_key("kf.kf", f"{RandomString(10)}:\\")
 
 
 def test_settings_init():
