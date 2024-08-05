@@ -73,6 +73,8 @@ def tr(key: str, *params) -> str:  # pylint: disable=C0103
         param_list += ["{}"] * (bracket_count - len(param_list))
         formatted_string = entry.format(*param_list)
     except ValueError:
+        # 団体テストを実行しなった場合の安全装置
+        # 例：value=="{1}の{0}=={}"
         formatted_string = re.sub(r"\{\d+\}", "{}", entry)
         formatted_string = formatted_string.format(*params)
 

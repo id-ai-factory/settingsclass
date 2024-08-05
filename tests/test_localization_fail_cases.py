@@ -88,5 +88,12 @@ def test_parameter_insertion():
     assert tr("ut_ordered_params_3", 2, 3, 4, 5, 6, 7) == "2のため3と4"
 
 
-def __this_is_used_by_test_localization_py():
+def test_half_specified_order_contingency():
+    set_tr_test("test_strings_half_specified")
+    set_language("en")
+
+    assert tr("ut_incorrect_mixed_params_3", 7, 8, 9) == "7 and 8 caused 9"
+
+
+def __this_is_used_by_ast_in_test_localization_py():  # pragma: no cover
     _ = tr("ut_this_key_does_not_exist")

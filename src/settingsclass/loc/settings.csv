@@ -21,13 +21,16 @@ invalid_encryption_key_type_1,"暗号化キーの型が不正です：{}。使�
 could_not_decode_string_1,"ファイルのデコードに失敗しました。ファイルが壊れている可能性があります：{}","Failed to decode the file. The file may be corrupted: {}"
 function_can_only_be_called_on_randomtype_1,"この関数は_RandomTypeのみで呼び出すことができます：{}","This function can only be called on _RandomType: {}"
 keyfile_location_unaccessible_1,"キーファイルの場所にアクセスできません。代わりに文字列または呼び出し可能なキーで指定してください：{}","The keyfile location is unaccessable. Please provide a string or callable key instead: {}"
+no_initial_value_3,"クラス{}.{}の<{}>の値は見つかりませんでした。ランダムの変数の場合でもプレースホルダーの値は必用です。","Missing value for variable <{2}> inside {0}.{1}. All keys need to be initialized, even random properties require a placeholder."
+parameter_type_missing_1,"{}のパラメーターのタイプが見つかりません。デフォルト値から設定します。iniファイルのパラメータ順が守れない可能性があります。","Parameter type hint for {} was not found. Parameters without explicit type are not fully supported. The type will be inferred based on the default value. The parameter will be placed at the end in the config file"
 
 #UT
 ##設定モジュール/Settings module
-lower_third_not_reached_during_ddcsst,"RandomSettingTypeの設定生成のユニットテスト中に、下位の1割の値が生成されませんでした。","The lower third values have not been generated during the unit test of RandomType for setting generation"
-higher_third_not_reached_during_ddcsst,"RandomSettingTypeの設定生成のユニットテスト中に、上位の1割の値が生成されませんでした。","The higher third values have not been generated during the unit test of RandomType for setting generation"
+lower_third_not_reached,"RandomSettingTypeの設定生成のユニットテスト中に、下位の1割の値が生成されませんでした。","The lower third values have not been generated during the unit test of RandomType for setting generation"
+higher_third_not_reached,"RandomSettingTypeの設定生成のユニットテスト中に、上位の1割の値が生成されませんでした。","The higher third values have not been generated during the unit test of RandomType for setting generation"
 
 ##翻訳モジュール/Translation module
 param_count_mismatch_2,"パラメータの数がキーの期待値と一致しません。 ({}の{}行目から呼び出されました)","The number of parameters does not match the number at the end of the key (called from {} line {})"
+pos_and_non_pos_brackets_mixed_2,"位置指定と非位置指定のブラケットが混在しています。 (＜{}＞キー値：{})","Positional and non-positional brackets are mixed. (key <{}> has value <{}>)"
 translation_key_does_not_exist_3,"翻訳キーの「{}」が存在しません。箇所：{}の{}行目","The translation key '{}' does not exist in file {} line {}"
 unused_key_found_1,"未使用の翻訳キーが見つかりました。：{}","Unused translation key found: {}"

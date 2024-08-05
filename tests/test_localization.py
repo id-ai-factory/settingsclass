@@ -105,7 +105,9 @@ def pyfiles_ast():
         pyfiles_ast.files
     except AttributeError:
         # starts with venv or .venv
-        files = filtered_files(".", ["py"], exclude="\.*venv.*", recursive=True)
+        files = filtered_files(
+            ".", extensions="py", exclude=r"\.*venv.*", recursive=True
+        )
         files = [fn for fn in files if split_path(fn)[-1] not in PYFILE_EXCLUSIONS]
         pyfiles_ast.files = files
 
@@ -153,7 +155,8 @@ def py_get_tr_key_safe(node, file_path) -> str:
             if hasattr(tr_call_args, "value"):
                 tr_key = tr_call_args.value
                 return tr_key
-    except Exception as ex:
+    except Exception as ex:  # pragma: no cover
+        # helps locate the exact location of the exception
         print(f"Could parse {file_path} / {node.lineno}")
         raise ex
     return None
@@ -227,7 +230,8 @@ def test_param_count_in_csv():
         set_language(lang)
         for key, value in tr.active_words.items():
             if key in non_functional_bracket_keys:
-                continue
+                # here for forward-compatibility
+                continue  # pragma: no cover
             if key[-2] == "_" and key[-1].isdigit():
                 expected_count = int(key[-1])
             else:
@@ -252,6 +256,22 @@ def test_param_count_in_code(
             assert expected_param_count == arg_count, tr(
                 "param_count_mismatch_2", file_path, lineno
             )
+
+
+def test_mixed_position_declaration_in_csv():
+    """CSVの翻訳キーのパラメータ数とすべての言語の翻訳内容の｛｝数と一致すること"""
+    # パラメータを使っていない場合は、パラメータではない｛｝も許されますが、個々の指定は必要です
+
+    original_lang = current_language()
+    for lang in tr.words.keys():
+        set_language(lang)
+        for key, value in tr.active_words.items():
+            try:
+                value.format(*[0] * 20)
+            except ValueError:
+                raise AssertionError(tr("pos_and_non_pos_brackets_mixed_2", key, value))
+
+    set_language(original_lang)
 
 
 def test_non_existent_key(
@@ -303,6 +323,16 @@ def test_param_count_test():
         test_param_count_in_csv()
 
 
+def test_mixed_position_declaration_in_csv_test():
+    set_tr_test("test_strings_half_specified")
+
+    key_error_pattern = regex.compile(
+        tr("pos_and_non_pos_brackets_mixed_2", ".+", ".+")
+    )
+    with pytest.raises(AssertionError, match=key_error_pattern):
+        test_mixed_position_declaration_in_csv()
+
+
 def test_non_existent_key_test():
     """【test_non_existent_key】関数が、間違ったファイルにエラーを出すことを確認する"""
     set_tr_test("test_strings_warning")
@@ -350,7 +380,8 @@ def test_actual_use():
                     manual_translate = (
                         tr.active_words[key].format(*fake_params).replace("\\n", "\n")
                     )
-                except Exception as ex:
+                except Exception as ex:  # pragma: no cover
+                    # Helps find the exact keyword that causes the issue
                     print(f"Failed on/失敗したキーワード： {key}")
                     raise ex
                 assert auto_translate == manual_translate, key
@@ -410,6 +441,6 @@ def test_empty_contents():
 # %%
 
 if __name__ == "__main__":
-    pytest.main()
+    pytest.main()  # pragma: no cover
 
 # %%

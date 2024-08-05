@@ -15,6 +15,7 @@ import hashlib
 from secrets import token_bytes
 import configparser
 import random
+import re
 import secrets
 from types import GenericAlias, MethodType, FunctionType
 from typing import Any, Callable, TypeVar
@@ -51,7 +52,11 @@ def set_language(lang: str):
 
 
 class KeyfileLocationError(RuntimeError):
-    """キーファイルがアクセスできないときに発生する"""
+    """The location of the key cannot be accessed"""
+
+
+class MissingSettingsError(RuntimeError):
+    """The settings has not been given an initialization value"""
 
 
 def hash_value(value: str):
@@ -60,30 +65,45 @@ def hash_value(value: str):
     return hash.hexdigest()
 
 
-def _load_key(plain_filename: str, parent_dir: str = None):
-    """Loads a key from the specified path. If not parent_dir, the library directory is used"""
-    true_filename = hash_value(plain_filename)
+def _ensure_parent_dirs(parent_dir: str = None) -> str:
+    """Attempts to create parent directory. If None is specified, the current lib directory is used"""
 
     if not parent_dir:
         parent_dir = os.path.dirname(__file__)
     elif not os.path.exists(parent_dir):
         os.makedirs(parent_dir)
 
-    full_path = os.path.join(parent_dir, true_filename)
+    return parent_dir
 
-    try:
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-            with open(full_path, "rb") as f:
-                key_content = f.read()
-        else:
-            key_content = token_bytes(16)
-            with open(full_path, "wb") as f:
-                f.write(key_content)
-    except PermissionError as ex:
-        logger.error(error_string := tr("keyfile_location_unaccessible_1", full_path))
-        raise PermissionError(error_string) from ex
+
+def _load_key_unchecked(full_path: str) -> bytes:
+    """Loads a key from the specified path. If not parent_dir, the library directory is used.
+    The full path should be hashed"""
+
+    if os.path.exists(full_path) and os.path.isfile(full_path):
+        with open(full_path, "rb") as f:
+            key_content = f.read()
+    else:
+        key_content = token_bytes(16)
+        with open(full_path, "wb") as f:
+            f.write(key_content)
 
     return key_content
+
+
+def _load_key(plain_filename: str, parent_dir: str = None) -> bytes:
+    """Loads a key from the specified path. If not parent_dir, the library directory is used"""
+
+    true_filename = hash_value(plain_filename)
+
+    full_path = parent_dir  # for the exception
+    try:
+        parent_dir = _ensure_parent_dirs(parent_dir)
+        full_path = os.path.join(parent_dir, true_filename)
+        return _load_key_unchecked(full_path)
+    except (PermissionError, OSError) as ex:
+        logger.error(error_string := tr("keyfile_location_unaccessible_1", full_path))
+        raise PermissionError(error_string) from ex
 
 
 def _load_guard(key, iv, salt: bytes = None):
@@ -212,7 +232,7 @@ class RandomFloat(float, _RandomType):
         uncapped_val = float(random_function() * (max_value - min_value) + min_value)
         if precision >= 0:
             return round(uncapped_val, precision)
-        return precision
+        return uncapped_val
 
 
 # note: use lowercase for  subclasses, they will be shadowed by instance values
@@ -322,7 +342,23 @@ def __post_init__(self):
     for member_name in self.__dir__():
         if not _is_hidden_variable(self, member_name):
             subclass = getattr(self, member_name)
-            subclass_instance = subclass()
+            try:
+                subclass_instance = subclass()
+            except TypeError as ex:
+                msg = str(ex)
+                try:
+                    cls_name, subclass_name, var_name = re.findall(
+                        r"(\w+)\.(\w+)\.__init__\(\) missing \d+ required positional argument: \'(\w+)\'",
+                        msg,
+                    )[0]
+                except (ValueError, IndexError):  # pragma: no cover
+                    # Just in case there is a different error than can occur that I have overlooked
+                    raise ex
+                else:
+                    raise MissingSettingsError(
+                        tr("no_initial_value_3", cls_name, subclass_name, var_name)
+                    ) from ex
+
             setattr(self, member_name, subclass_instance)
             for var_name, var_type in subclass_instance.__annotations__.items():
                 var_value = getattr(subclass_instance, var_name)
@@ -428,6 +464,7 @@ def update_config(self, config: configparser.ConfigParser) -> None:
                 config[section_name] = {}
             for var_name in section_instance.__dir__():
                 if var_name[:1] != "_":
+                    var_value = getattr(section_instance, var_name)
                     var_type = section_instance.__annotations__[var_name]
                     is_wrapper_type = isinstance(var_type, GenericAlias)
                     # 乱数等がGenericAliasを使っています
@@ -435,7 +472,6 @@ def update_config(self, config: configparser.ConfigParser) -> None:
                     if not is_wrapper_type or (
                         is_wrapper_type and not issubclass(var_type.__origin__, Hidden)
                     ):
-                        var_value = getattr(section_instance, var_name)
                         if var_name in config[section_name]:
                             config_val = config[section_name][var_name]
                         else:
@@ -725,7 +761,17 @@ def _set_members(
         if parameter_name[:1] != "_":
             # コンフィグファイルから読み込んだ値
 
-            expected_type: type = section_class.__annotations__[parameter_name]
+            if parameter_name not in section_class.__annotations__:
+                section_class.__annotations__[parameter_name] = type(
+                    default_parameter_value
+                )
+                logger.warning(tr("parameter_type_missing_1", parameter_name))
+
+            expected_type: type = (
+                section_class.__annotations__[parameter_name]
+                if parameter_name in section_class.__annotations__
+                else type(default_parameter_value)
+            )
             if parameter_name in config_section:
                 # 使用されていないパラメーターから削除
                 config_section_parameter_names.remove(parameter_name)
@@ -943,7 +989,7 @@ if __name__ == "__main__":  # pragma: no cover
         # file_path = '<NOT_SET>'
 
         class program:
-            lang: str = "ja"
+            lang = "ja"
             log_level: str = "debug"
             colored_console_output: Hidden[bool] = True  # ログをカラー表示するか
             machine_id: RandomString[5] = ""
@@ -957,7 +1003,7 @@ if __name__ == "__main__":  # pragma: no cover
             backup_pin: Encrypted[int] = -1
             model: str = "gpt-3.5-turbo"  # GPTモデルの識別文字列
             temperature: Hidden[float] = 5
-            timeout: int = 300
+            timeout = 300
 
     conf = _Settings("cx.ini")
     # conf = _Settings(f"conf/{RandomString(5)}.ini")

@@ -37,7 +37,9 @@ from src.settingsclass.settingsclass import (
     encrypt_message,
     decrypt_message,
     _within_random_limits,
+    _safe_decrypt_field,
     hash_value,
+    MissingSettingsError,
 )
 
 from src.settingsclass.settingsclass import set_language as set_language_settings
@@ -96,7 +98,23 @@ class Settings:
         api_key: Encrypted[str] = ""
         backup_pin: Encrypted[int] = -1
         temperature: Hidden[float] = 5
-        timeout: int = 300
+        timeout = 300  # Type int is inferred, experimental support
+
+
+@settingsclass(
+    encryption_key="987X654", _salt=b"'?\xbc\x1eA\x82\xa3\xb4\xd3&\x84\x99\x10P\x86\xce"
+)
+class SettingsShort:
+    class alpha:
+        beta: str = "gamma"
+        delta: int = 5
+        unchanged: str = "omega"
+        unchint: int = 1
+        will_be_edited: Encrypted[RandomFloat[0, 2**16]] = 1.2
+        should_be_partially_affected: Encrypted[RandomFloat[0, 2**16]] = -1
+
+    class beta:
+        beta: str = "not mod"
 
 
 # %% Test loc wrapper functions
@@ -139,6 +157,24 @@ def test_hash():
     assert len(hash_value("a")) >= 32
 
 
+def test_safe_decrypt_field_safety(caplog):
+    for test_string in [
+        ",",
+        "123456",
+        "?ENCd7d21f6c54087d7b668c4e0d2c9717270d0d8b04114db64dea6262553975b538",
+        "?ENCd7d21f6c54087d7b668c4e0d2c9717270d0d8b04114db64dea6262553975b53",
+    ]:
+        caplog.clear()
+        with caplog.at_level(logging.ERROR):
+            _safe_decrypt_field(
+                test_string,
+                parameter_name_debug=(pnd := "test_param_1"),
+                encryption_key="123X456",
+                salt=b"\x86\xce'?\xbc\x1eA\xd3&\x84\x82\xb4\xa3\x99\x10P",
+            )
+        assert tr("could_not_decode_string_1", pnd) in caplog.text
+
+
 def test_random_str():
     for minval, maxval in ((0, 5), (6, 11)):
         vals = []
@@ -173,6 +209,28 @@ def test_random_int():
 
     for i in range(minval, maxval + 1):
         assert i in vals
+
+    # test precision
+    at_least_6_once = False
+    for i in range(50):
+        rv = RandomFloat(78, 79, precision=-1)
+        assert rv >= 78 and rv <= 79 and len(str(rv)) >= 8
+
+        rv = RandomFloat(78, 79, precision=0)
+        assert (
+            rv >= 78
+            and rv <= 79
+            and len(sv := str(rv)) == 4
+            and sv[-1] == "0"
+            and sv[-2] == "."
+        )
+
+        rv = RandomFloat(78, 79, precision=3)
+        assert rv >= 78 and rv <= 79 and len(sv := str(rv)) <= 6 and sv[2] == "."
+        if len(sv) == 6:
+            at_least_6_once = True
+
+    assert at_least_6_once
 
     # パラメータ数
     with pytest.raises(TypeError):
@@ -212,14 +270,14 @@ def test_random_float():
             if v < minval + (maxval - minval) / 4:
                 break
         else:
-            raise AssertionError(tr("lower_third_not_reached_during_ddcsst"))
+            raise AssertionError(tr("lower_third_not_reached"))  # pragma: no cover
 
         # 上の3分の一に入る値がある
         for v in vals:
             if v > minval + 3 * (maxval - minval) / 4:
                 break
         else:
-            raise AssertionError(tr("higher_third_not_reached_during_ddcsst"))
+            raise AssertionError(tr("higher_third_not_reached"))  # pragma: no cover
 
     for _ in range(100):
         x = 1.324
@@ -449,6 +507,40 @@ def test_object_not_static():
     assert config2.program.seed == 99
 
 
+def test_missing_init_value_msg():
+    @settingsclass
+    class LocalSettingsNone:
+        class subc:
+            a: str
+
+    # This triggers inside the decorator,
+    # but should be understandable without a wrapper
+    # @settingsclass
+    # class LocalSettingsLast:
+    #     class subc:
+    #         a: str = "asd"
+    #         b: str
+
+    @settingsclass
+    class LocalSettingsFirst:
+        class subc:
+            t: str
+            z: str = "2"
+
+    missing_pn_error_pattern = re.compile(
+        tr("no_initial_value_3", "LocalSettingsNone", "subc", "a")
+    )
+
+    with pytest.raises(MissingSettingsError, match=missing_pn_error_pattern):
+        _ = LocalSettingsNone(join(PARENT_OUT, "pl.ini"))
+
+    missing_pn_error_pattern = re.compile(
+        tr("no_initial_value_3", "LocalSettingsFirst", "subc", "t")
+    )
+    with pytest.raises(MissingSettingsError):
+        _ = LocalSettingsFirst(join(PARENT_OUT, "plpl.ini"))
+
+
 def test_case_sensitivity():
     """「case_sensitive」パラメータ効果の有無確認"""
     # UTF-8とキャストのテストも含む
@@ -482,6 +574,11 @@ def test_settings_is_folder():
     # path <- config.iniのフォルダー
     with pytest.raises(IsADirectoryError), silent_output():
         config = Settings(PARENT_IN)
+
+
+def test_unaccessible_location():
+    with pytest.raises(PermissionError):
+        _ = _load_key("kf.kf", f"{RandomString(10)}:\\")
 
 
 def test_settings_init():
@@ -527,6 +624,50 @@ def test_settings_init():
         with open(gold_path, encoding="utf-8") as file:
             gold = file.read()
         assert gold == hat
+
+
+def test_settings_overwrite():
+    backup_path = join(PARENT_OUT, "config_mutable_bk.ini")
+    modified_path = join(PARENT_OUT, "config_mutable.ini")
+
+    with silent_output():
+        config = SettingsShort(modified_path)
+
+    config.save_to_file(backup_path)
+    # edit
+    config.alpha.beta = "modified string"
+    config.alpha.delta = 1234
+    config.alpha.will_be_edited = 33.24
+
+    config.save_to_file()
+
+    # check files
+    original = SettingsShort(backup_path)
+    modified = SettingsShort(modified_path)
+
+    # unmodified bits
+    assert original.alpha.unchanged == modified.alpha.unchanged
+    assert original.alpha.unchint == modified.alpha.unchint
+    assert (
+        original.alpha.should_be_partially_affected
+        == modified.alpha.should_be_partially_affected
+    )
+    assert original.beta.beta == modified.beta.beta
+
+    # modified bits
+    assert (
+        original.alpha.beta != modified.alpha.beta
+        and modified.alpha.beta == "modified string"
+    )
+    assert original.alpha.delta != modified.alpha.delta and modified.alpha.delta == 1234
+    assert (
+        original.alpha.will_be_edited != modified.alpha.will_be_edited
+        and modified.alpha.will_be_edited == 33.24
+    )
+
+    # with open(backup_path, encoding="utf-8") as original, open(modified_path, encoding="utf-8") as modified:
+
+    assert config
 
 
 def test_missing_section_and_variable(caplog):  # noqa: F811
@@ -616,14 +757,27 @@ def test_type_confusion(caplog):  # noqa: F811
     )
 
 
+def test_need_encryption(caplog):
+    with open(join(PARENT_IN, "config_generated_good_half_enc.ini"), "rb") as f, open(
+        copied_file := join(PARENT_OUT, "cgghe.ini"), "wb"
+    ) as g:
+        g.write(f.read())
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        _ = Settings(copied_file)
+    assert tr("unencrypted_data_found_1", "['gpt/backup_pin']") in caplog.text
+
+
 # %% ENV check
 def _set_env_values(
     new_values_dict: dict[str, str],
 ) -> tuple[dict[str, str], list[str]]:
     old_values = {}
     values_to_remove = []
+    # no cover note -- the clause is only triggered if the key already exists in the env
+    # This is added as a safety measure to not mess up the original python env that runs it
     for key, value in new_values_dict.items():
-        if key in environ:
+        if key in environ:  # pragma: no cover
             old_values[key] = environ[key]
         else:
             values_to_remove.append(key)
@@ -634,7 +788,7 @@ def _set_env_values(
 
 def _reset_env_values(old_values: dict[str, str], values_to_remove: list[str]) -> None:
     for key, value in old_values.items():
-        environ[key] = str(value)
+        environ[key] = str(value)  # pragma: no cover
 
     for key in values_to_remove:
         environ.pop(key)
@@ -749,4 +903,4 @@ def test_environmental_variables_decorator():
 
 # %%
 if __name__ == "__main__":
-    pytest.main()
+    pytest.main()  # pragma: no cover
