@@ -10,6 +10,8 @@ An easy-to-use but feature-rich solution to storing settings in python.
 
 This library provides a decorator to mark your own custom classes, where variables become setting values. If you have used [dataclass](https://docs.python.org/3/library/dataclasses.html) before, this library should feel familiar. It also includes synchronization with an external ini file and support for runtime-generated values, e.g. random strings for synchronizing settings with an ini file using a [configparser](https://docs.python.org/3/library/configparser.html) backend.   
 
+Developed by [ID AI Factory Co., Ltd.](https://www.ai-factory.co.jp)
+
 ---
 
 # Quick-start example (1/2)

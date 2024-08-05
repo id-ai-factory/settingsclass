@@ -8,6 +8,8 @@ Pythonで利用できる使いやすさと豊富な機能を兼ね備えた設�
 
 このライブラリは、変数を設定値として扱う独自のカスタムクラスをマークするためのデコレータを提供します。もし以前に[dataclass](https://docs.python.org/3/library/dataclasses.html)を使用したことがあるなら、このライブラリに親しみを感じるでしょう。また、外部のiniファイルとの同期や、[configparser](https://docs.python.org/3/library/configparser.html) バックエンドを使用してiniファイルと同期する設定用のランダム文字列など、実行時に生成される値にも対応しています。
 
+Developed by [株式会社 ID AI Factory](https://www.ai-factory.co.jp)
+ 
 ---
  
 # クイックスタート・使用例（1/2）
@@ -80,7 +82,7 @@ print(config2.agent.seed) # ランダムな数字、例えば「4281.154」を F
 可読性を高めるため、コンソール関連の設定とチャットエージェントの設定の2つのセクションを定義する。 
 
 
-以下の説明のコードは、[こちら](demo_jp.py)でもご覧いただけます*
+以下の説明のコードは、[こちら](demo_ja.py)でもご覧いただけます*
 <details>
 <summary><i>命名規則に関する注記</i></summary>
 定義時には<code>class Settings</code>/<code>class Section</code>（大文字）が適切と思われるが、使用時には同じ名前で呼ばれる。したがって、ほとんどの使用時にはオブジェクトとなるため、<code>class Settings</code>/<code>class section</code>（内部小文字）の使用が推奨される。実行時に名前の大文字小文字を変更することも検討したが、特に<code>ClassNamesOfMultipleWords</code> -> <code>class_names_of_multiple_words</code>を使用する場合は、かえって混乱を招くと考えた。
@@ -540,7 +542,7 @@ configparser ハンドラは、大文字小文字の設定などを含め、ユ�
 
 # 完全な例
 
-print文を使用した詳細な使用例シナリオは、[demo_jp.py](demo_jp.py)内に記載されています。
+print文を使用した詳細な使用例シナリオは、[demo_ja.py](demo_ja.py)内に記載されています。
 
 生成された ini ファイルは、以下のようになります。暗号化されている値は異なります。
 
