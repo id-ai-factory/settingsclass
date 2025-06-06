@@ -9,7 +9,7 @@ unencrypted_data_found_1,"暗号化されていないデータ（{}）が見つ�
 #エラーメッセージ/error messages
 
 file_is_folder_1,"指定されたパスはファイルを指すことが期待されていましたが、フォルダを指しています。：{}。","The path was expected to point to a file, but points to a folder. Path: {}"
-invalid_type_4,"【{0}】セクションのパラメータ【{1}】に対して、【{3}】をタイプ{2}に変換できませんでした。","Could not convert '{3}' to type {2} for parameter <{1}> in section <{0}>"
+invalid_type_5,"【{0}】セクションのパラメータ【{1}】に対して、【{3}】をタイプ{2}に変換できませんでした。デフォルト値の【{4}】に設定します。","Could not convert '{3}' to type {2} for parameter <{1}> in section <{0}>. Setting to the default value of {4}"
 missing_config_section_1,"セクション【{}】が見つかりませんでした。","The config file is missing section <{}>"
 config_param_missing_2,"セクションのパラメータ【{0}】に【{1}】が見つかりませんでした。","Config file is missing parameter <{1}> in section <{0}>"
 extra_config_sections_1,"設定ファイルに予期しないセクションは使用できません。：{}","The following sections are not in the definition and will be ignored: {}"
@@ -22,7 +22,7 @@ could_not_decode_string_1,"ファイルのデコードに失敗しました。�
 function_can_only_be_called_on_randomtype_1,"この関数は_RandomTypeのみで呼び出すことができます：{}","This function can only be called on _RandomType: {}"
 keyfile_location_unaccessible_1,"キーファイルの場所にアクセスできません。代わりに文字列または呼び出し可能なキーで指定してください：{}","The keyfile location is unaccessable. Please provide a string or callable key instead: {}"
 no_initial_value_3,"クラス{}.{}の<{}>の値は見つかりませんでした。ランダムの変数の場合でもプレースホルダーの値は必用です。","Missing value for variable <{2}> inside {0}.{1}. All keys need to be initialized, even random properties require a placeholder."
-parameter_type_missing_1,"{}のパラメーターのタイプが見つかりません。デフォルト値から設定します。iniファイルのパラメータ順が守れない可能性があります。","Parameter type hint for {} was not found. Parameters without explicit type are not fully supported. The type will be inferred based on the default value. The parameter will be placed at the end in the config file"
+parameter_type_missing_1,"{} のパラメータの型ヒントが見つかりませんでした。明示的な型が指定されていないパラメータは、その値から型が推測されますが、これは部分的に失敗しました。値は引き続き推測されますが、文字列の変換ではこのメンバーは表示されません。","Parameter type hint for {} was not found. Parameters without explicit type are inferred from their values, but this has partially failed. The value will still be inferred, but string conversion will not show this member"
 
 #UT
 ##設定モジュール/Settings module

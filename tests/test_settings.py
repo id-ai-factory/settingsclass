@@ -98,8 +98,8 @@ class Settings:
     class gpt:
         api_key: Encrypted[str] = ""
         backup_pin: Encrypted[int] = -1
+        timeout = 300
         temperature: Hidden[float] = 5
-        timeout = 300  # Type int is inferred, experimental support
 
 
 @settingsclass(
@@ -419,6 +419,10 @@ def validate_good_contents(config: Settings):
     assert config.gpt.temperature == 0.15  # mod
     assert config.gpt.timeout == 281
 
+    # Validate, that the implied parameter is also printed,
+    # and at the correct place
+    assert "timeout: <int> = 281" in str(config).split("\n")[-3]
+
 
 def validate_init_contents(config: Settings):
     """初期化された状態のパラメータの確認。複数のパスで利用するため"""
@@ -441,6 +445,10 @@ def validate_init_contents(config: Settings):
     assert config.gpt.backup_pin == -1
     assert config.gpt.temperature == 5
     assert config.gpt.timeout == 300
+
+    # Validate, that the implied parameter is also printed,
+    # and at the correct place (2nd from the back + 1x newline)
+    assert "timeout: <int> = 300" in str(config).split("\n")[-3]
 
 
 def test_ram_only_init():
@@ -562,9 +570,9 @@ def test_case_sensitivity():
 def test_settings_is_folder():
     """設定ファイルのパスはフォルダーになった場合のエラーの確認"""
     ini_dir = join(PARENT_IN, "config.ini")
-    assert exists(ini_dir) and isdir(
-        ini_dir
-    ), f"Test setup is incorrect, {ini_dir} should be a directory"
+    assert exists(ini_dir) and isdir(ini_dir), (
+        f"Test setup is incorrect, {ini_dir} should be a directory"
+    )
 
     # path <- config.ini/config.ini、最初はフォルダー
 
@@ -724,11 +732,17 @@ def test_invalid_param_type(caplog):  # noqa: F811
         config = Settings(join(PARENT_IN, "config_bad_type.ini"))
 
     assert (
-        tr("invalid_type_4", "program", "colored_console_output", bool, "Igen")
+        tr("invalid_type_5", "program", "colored_console_output", bool, "Igen", True)
         in caplog.text
     )
-    assert tr("invalid_type_4", "program", "rfph", float, "alma") in caplog.text
-    assert tr("invalid_type_4", "program", "api_id", int, "bar") in caplog.text
+    assert (
+        tr("invalid_type_5", "program", "rfph", float, "alma", config.program.rfph)
+        in caplog.text
+    )
+    assert (
+        tr("invalid_type_5", "program", "api_id", int, "bar", config.program.api_id)
+        in caplog.text
+    )
 
     api_id = config.program.api_id
     assert api_id >= 1000 and api_id <= 9999
@@ -760,9 +774,10 @@ def test_type_confusion(caplog):  # noqa: F811
 
 
 def test_need_encryption(caplog):
-    with open(join(PARENT_IN, "config_generated_good_half_enc.ini"), "rb") as f, open(
-        copied_file := join(PARENT_OUT, "cgghe.ini"), "wb"
-    ) as g:
+    with (
+        open(join(PARENT_IN, "config_generated_good_half_enc.ini"), "rb") as f,
+        open(copied_file := join(PARENT_OUT, "cgghe.ini"), "wb") as g,
+    ):
         g.write(f.read())
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -807,7 +822,7 @@ def test_environmental_variables_instance():
 
         validate_init_contents(config)
         validate_init_contents(config_disabled)
-        env_prefix = f'{prefix}{prefix and "_"}'
+        env_prefix = f"{prefix}{prefix and '_'}"
 
         old_values, temp_values = _set_env_values(
             {

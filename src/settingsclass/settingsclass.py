@@ -290,7 +290,7 @@ def user_friendly_type_name(typ):
     friendly_type = typ
     if issubclass(typ, _TypeWrapper):
         friendly_type = typ.__args__[0]
-    elif issubclass(typ.__origin__, _RandomType):
+    elif hasattr(typ, "__origin__") and issubclass(typ.__origin__, _RandomType):
         friendly_type = typ.__base__
 
     return friendly_type
@@ -298,7 +298,7 @@ def user_friendly_type_name(typ):
 
 def _default_value_for_type(typ, default_value_for_primitive):
     """Returns a default value for simple types, but generates one for random types"""
-    if issubclass(typ.__origin__, _RandomType):
+    if hasattr(typ, "__origin__") and issubclass(typ.__origin__, _RandomType):
         return _init_randomclass(typ)
     return default_value_for_primitive
 
@@ -397,7 +397,7 @@ def __repr__(self) -> str:
             subclass_contents = __subrepr__(subclass_instance)
             concated_str += f"{subclass_name}: {subclass_contents}\n "
             # TODO finish after shadowing with instances
-    return concated_str
+    return concated_str.rstrip(" ")
 
 
 def _encrypt_field(
@@ -448,6 +448,39 @@ def _safe_decrypt_field(
     return message
 
 
+def _insert_in_order(
+    dictionary: dict[Any, Any], new_key: Any, new_value: Any, after_key: Any
+):
+    """Inserts a key into a dictionary after the selected key"""
+
+    entries = []
+
+    while dictionary:
+        key, value = dictionary.popitem()
+        entries.append((key, value))
+
+        if key == after_key:
+            dictionary[key] = value
+            break
+
+    dictionary[new_key] = new_value
+    for key, value in entries[::-1]:
+        dictionary[key] = value
+
+
+def _infer_annotations(instance):
+    """Infers the annotations of non-specified members and adds them to <__annotations__>"""
+    prev_name = None
+    for var_name, var_value in instance.__dict__.items():
+        if not _is_hidden_variable(instance, var_name):
+            if var_name not in instance.__annotations__:
+                _insert_in_order(
+                    instance.__annotations__, var_name, type(var_value), prev_name
+                )
+
+            prev_name = var_name
+
+
 def update_config(self, config: configparser.ConfigParser) -> None:
     """Updates the provided config file with the values inside current instance
     The Hidden type variables are not added.
@@ -463,7 +496,7 @@ def update_config(self, config: configparser.ConfigParser) -> None:
             if section_name not in config:
                 config[section_name] = {}
             for var_name in section_instance.__dir__():
-                if var_name[:1] != "_":
+                if not _is_hidden_variable(section_instance, var_name):
                     var_value = getattr(section_instance, var_name)
                     var_type = section_instance.__annotations__[var_name]
                     is_wrapper_type = isinstance(var_type, GenericAlias)
@@ -765,6 +798,7 @@ def _set_members(
                 section_class.__annotations__[parameter_name] = type(
                     default_parameter_value
                 )
+                # These are added at the moment of wrapping, therefore should not happen
                 logger.warning(tr("parameter_type_missing_1", parameter_name))
 
             expected_type: type = (
@@ -800,19 +834,19 @@ def _set_members(
 
                         # キャストが失敗したらValueErrorになる
                     except ValueError:
+                        # 失敗したらデフォルト値にする
+                        param_value_after_cast = _default_value_for_type(
+                            expected_type, default_parameter_value
+                        )
                         logger.warning(
                             tr(
-                                "invalid_type_4",
+                                "invalid_type_5",
                                 config_section.name,
                                 parameter_name,
                                 user_friendly_type_name(expected_type),
                                 config_param_value,
+                                param_value_after_cast,
                             )
-                        )
-                        # 失敗したらデフォルト値にする
-
-                        param_value_after_cast = _default_value_for_type(
-                            expected_type, default_parameter_value
                         )
 
                 else:
@@ -872,7 +906,9 @@ def _add_settings_layer(
 
     for subclass_name, subclass_proper in cls.__dict__.items():
         if not _is_hidden_variable(cls, subclass_name):
-            setattr(cls, subclass_name, dataclass(getattr(cls, subclass_name)))
+            _infer_annotations(getattr(cls, subclass_name))
+            wrapped_subclass = dataclass(getattr(cls, subclass_name))
+            setattr(cls, subclass_name, wrapped_subclass)
 
             def repr_wrapper(_self, subclass_name=subclass_name):
                 return f"{cls.__name__} section: [{subclass_name}]{__subrepr__(_self)}"
