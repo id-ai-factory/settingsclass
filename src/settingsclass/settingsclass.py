@@ -255,7 +255,7 @@ def _ensure_correct_list_type(
     Args:
         config_param_value (Any): リスト等
         expected_type (ClassType): 要素の型
-        cast_function (Callable[[Any], ClassType], optional): 変換関数. Defaults to lambdax:x.
+        cast_function (Callable[[Any], ClassType], optional): 変換関数. Defaults to lambda x:x.
 
     Returns:
         _type_: _description_
@@ -335,7 +335,9 @@ def _auto_cast_type(
     # コンフィグファイルに値が入っていない場合は型のヒントで初期化する
     elif config_param_value == "":
         param_value_after_cast = expected_type()
-
+    elif expected_type is Field:
+        # This only happens if the type is inferred, therefore casting here would be circular
+        param_value_after_cast = config_param_value
     else:
         # boolのサブクラスは定期不可能
         if expected_type is bool and not isinstance(config_param_value, bool):
@@ -559,7 +561,7 @@ def _insert_in_order(
 def _infer_annotations(instance):
     """Infers the annotations of non-specified members and adds them to <__annotations__>"""
     prev_name = None
-    for var_name, var_value in instance.__dict__.items():
+    for var_name, var_value in instance.__dict__.copy().items():
         if not _is_hidden_variable(instance, var_name):
             if var_name not in instance.__annotations__:
                 _insert_in_order(
@@ -984,7 +986,7 @@ def _replace_dataclass_forbidden_types(cls):
     These require having field(default_factory=list) for lists, dicts etc.
     To provide a more natural type definitions, these will be replaced automatically
     """
-    logger.debug("Setting forbidden types")
+
     fields_set = []
     for param_name, param_value in cls.__dict__.items():
         # logger.debug(f"Checking {param_name}")
@@ -1175,8 +1177,8 @@ if __name__ == "__main__":  # pragma: no cover
         class llm:
             api_key: Encrypted[str] = ""
             backup_pin: Encrypted[int] = -1
-            model: str = "35t"  # GPTモデルの識別文字列
-            fallback_models: list[str] = ["4.1", "4.0", 5.0]
+            model: str = "35t"
+            fallback_models = ["4.1", "4.0", 5.0]
             other_settings: tuple = (1, 2, "x")
             temperature: Hidden[float] = 5
             timeout = 300
