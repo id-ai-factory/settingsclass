@@ -8,7 +8,7 @@ Created on Thu May 11 16:54:34 2023
 # %% Imports
 # from __future__ import annotations  # do NOT use! Makes strings become un-callable
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, Field
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import hashlib
@@ -20,6 +20,7 @@ import secrets
 from types import GenericAlias, MethodType, FunctionType
 from typing import Any, Callable, TypeVar
 import os
+import json
 from threading import Lock
 
 from loguru import logger
@@ -153,6 +154,12 @@ def _is_encoded(message: str):
     return len(message) > len(ENC_PREFIX) and message[: len(ENC_PREFIX)] == ENC_PREFIX
 
 
+def _is_list_type(typ: type):
+    return (
+        isinstance(typ, GenericAlias) and typ.__origin__ in (list, tuple)
+    ) or typ in (list, tuple)
+
+
 class _TypeWrapper:
     def __class_getitem__(cls, item):
         # class Secret[Generic]: # req. python>=3.12
@@ -238,13 +245,51 @@ class RandomFloat(float, _RandomType):
 # note: use lowercase for  subclasses, they will be shadowed by instance values
 
 
+def _ensure_correct_list_type(
+    config_param_value: Any,
+    expected_type: type[list] | type[tuple],
+    cast_function: Callable[[Any], ClassType] = lambda x: x,
+) -> list[ClassType] | tuple[ClassType]:
+    """リスト等型の全ての要素を正しい型に変換する
+
+    Args:
+        config_param_value (Any): リスト等
+        expected_type (ClassType): 要素の型
+        cast_function (Callable[[Any], ClassType], optional): 変換関数. Defaults to lambdax:x.
+
+    Returns:
+        _type_: _description_
+    """
+    if isinstance(config_param_value, (list, tuple)):
+        # Checking the types separately, then checking if each element in the iterable
+        # is the correct type may be faster, but more error prone. Considering this is a
+        # settings file, not a database with thousands of entries, the overhead should be
+        # negligible
+        if expected_type is tuple:
+            param_value_after_cast = tuple(cast_function(x) for x in config_param_value)
+        else:
+            param_value_after_cast = [cast_function(x) for x in config_param_value]
+    else:
+        param_value_after_cast = (
+            [cast_function(config_param_value)]
+            if expected_type is list
+            else (cast_function(config_param_value),)
+        )
+
+    return param_value_after_cast
+
+
 def _auto_cast_type(
-    expected_type: type, config_param_value: str, *, force_random=False
+    expected_type: type, config_param_value: Any, *, force_random=False
 ):
     """設定クラスの型ヒントにに合わせる"""
 
     # ここのラッパーは全てGenericAliasも継承している
-    if isinstance(expected_type, GenericAlias):
+    if expected_type in (list, tuple):
+        param_value_after_cast = _ensure_correct_list_type(
+            config_param_value, expected_type
+        )
+    elif isinstance(expected_type, GenericAlias):
         # Randomの場合は、そのタイプのクラスにコンストラクタをあげる
         if issubclass(expected_type.__origin__, _RandomType):
             if config_param_value == "" or force_random:
@@ -258,7 +303,30 @@ def _auto_cast_type(
             param_value_after_cast = _auto_cast_type(
                 expected_type.__args__[0], config_param_value, force_random=force_random
             )
-
+        elif issubclass(expected_type.__origin__, (list, tuple)):
+            element_types = expected_type.__args__
+            if len(element_types) == 1:
+                param_value_after_cast = _ensure_correct_list_type(
+                    config_param_value, expected_type.__origin__, element_types[0]
+                )
+            elif len(element_types) == 0:
+                raise ValueError(
+                    tr(
+                        "iterable_class_annotation_too_few_1",
+                        expected_type,
+                    )
+                )
+            else:
+                raise ValueError(
+                    tr(
+                        "iterable_class_annotation_too_many_1",
+                        expected_type,
+                    )
+                )
+        elif issubclass(expected_type.__origin__, dict):
+            raise ValueError(
+                tr("dictionary_not_supported_2", config_param_value, expected_type)
+            )
         else:
             raise ValueError(
                 tr("unexpected_class_found_2", expected_type, config_param_value)
@@ -371,7 +439,7 @@ def __post_init__(self):
 def _class_name_without_path(typ) -> str:
     if issubclass(typ, _RandomType):
         return f"{typ.__name__}[{','.join([str(a) for a in typ.__args__])}]"
-    elif issubclass(typ, _TypeWrapper):
+    elif issubclass(typ, _TypeWrapper) or isinstance(typ, GenericAlias):
         return f"{typ.__name__}[{_class_name_without_path(typ.__args__[0])}]"
 
     return f"{typ.__name__}"
@@ -448,6 +516,26 @@ def _safe_decrypt_field(
     return message
 
 
+def _unpack_json(config_param_value, expected_type, default_parameter_value):
+    try:
+        return json.loads(config_param_value)
+    except json.JSONDecodeError:
+        new_default_value = (
+            default_parameter_value.default_factory()
+            if isinstance(default_parameter_value, Field)
+            else default_parameter_value
+        )
+        logger.warning(
+            tr(
+                "json_decode_failed_3",
+                config_param_value,
+                expected_type,
+                new_default_value,
+            )
+        )
+        return new_default_value
+
+
 def _insert_in_order(
     dictionary: dict[Any, Any], new_key: Any, new_value: Any, after_key: Any
 ):
@@ -502,6 +590,7 @@ def update_config(self, config: configparser.ConfigParser) -> None:
                     is_wrapper_type = isinstance(var_type, GenericAlias)
                     # 乱数等がGenericAliasを使っています
                     # __origin__ はGenericAliasのみ
+
                     if not is_wrapper_type or (
                         is_wrapper_type and not issubclass(var_type.__origin__, Hidden)
                     ):
@@ -528,7 +617,11 @@ def update_config(self, config: configparser.ConfigParser) -> None:
                                 var_value = f"{ENC_PREFIX}{var_value.hex()}"
                             else:
                                 var_value = config_val
-
+                        elif (
+                            is_wrapper_type and var_type.__origin__ in (list, tuple)
+                        ) or var_type in (list, tuple):
+                            # e.g. str(<tuple>)!=dumps(<tuple>)
+                            var_value = json.dumps(var_value)
                         if (
                             var_value
                             and issubclass(var_type, _RandomType)
@@ -735,6 +828,9 @@ def _set_param_from_env(
 
     if environmental_key in os.environ:
         env_value = os.environ[environmental_key]
+        if _is_list_type(parameter_type):
+            default_parameter_value = section_class.__dict__[parameter_name]
+            env_value = _unpack_json(env_value, parameter_type, default_parameter_value)
         env_value = _auto_cast_type(parameter_type, env_value)
         setattr(section_class, parameter_name, env_value)
 
@@ -826,7 +922,12 @@ def _set_members(
 
                         elif config_param_value:
                             need_encryption.append(parameter_name)
-
+                    elif _is_list_type(expected_type):
+                        # ここは、<config_param_value>が_auto_cast_typeでキャストするため、
+                        # param_value_after_castではなく、config_param_valueを設定する
+                        config_param_value = _unpack_json(
+                            config_param_value, expected_type, default_parameter_value
+                        )
                     try:
                         param_value_after_cast = _auto_cast_type(
                             expected_type, config_param_value
@@ -877,12 +978,47 @@ def _set_members(
 
 
 # %%
+def _replace_dataclass_forbidden_types(cls):
+    """
+    The inner classes are wrapped with @dataclass dynamically.
+    These require having field(default_factory=list) for lists, dicts etc.
+    To provide a more natural type definitions, these will be replaced automatically
+    """
+    logger.debug("Setting forbidden types")
+    fields_set = []
+    for param_name, param_value in cls.__dict__.items():
+        # logger.debug(f"Checking {param_name}")
+        supported_types = (list, dict, set)
+        for supported_type in supported_types:
+            if not _is_hidden_variable(cls, param_name) and isinstance(
+                param_value, supported_type
+            ):
+
+                def field_default_generator(value: list = param_value):
+                    return value.copy()
+
+                setattr(
+                    cls,
+                    param_name,
+                    field_generator := field(default_factory=field_default_generator),
+                )
+                fields_set.append((param_name, field_generator))
+                # logger.error(f"Setting attribute: {[x for x in cls.__dict__.keys() if x[0] != '_']} ")
+    return fields_set
+
+
+# TODO It should be possible to handle this more elegantly
+def _reset_removed_vals(cls, replaced_values):
+    for name, value in replaced_values:
+        setattr(cls, name, value)
+
+
 def _add_settings_layer(
-    cls: ClassType,
+    cls: type,
     env_prefix: str = "",
-    common_encryption_key: type[str | tuple[Callable[[Any], str]] | None] = None,
+    common_encryption_key: str | tuple[Callable[[Any], str]] | None = None,
     salt: bytes = None,
-) -> ClassType:
+) -> type:
     """Dynamically binds the necessary functions after applying the @dataclass decorator.
 
     Args:
@@ -901,14 +1037,16 @@ def _add_settings_layer(
             Defaults to None.
 
     Returns:
-        ClassType: Returns the decorated class
+        type: Returns the decorated class
     """
 
     for subclass_name, subclass_proper in cls.__dict__.items():
         if not _is_hidden_variable(cls, subclass_name):
+            fb_vals = _replace_dataclass_forbidden_types(subclass_proper)
             _infer_annotations(getattr(cls, subclass_name))
-            wrapped_subclass = dataclass(getattr(cls, subclass_name))
-            setattr(cls, subclass_name, wrapped_subclass)
+            dataclass(subclass_proper)  # In place ?!
+            _reset_removed_vals(subclass_proper, fb_vals)
+            setattr(cls, subclass_name, subclass_proper)
 
             def repr_wrapper(_self, subclass_name=subclass_name):
                 return f"{cls.__name__} section: [{subclass_name}]{__subrepr__(_self)}"
@@ -941,7 +1079,7 @@ def _add_settings_layer(
         self,
         *args,
         env_prefix: str = env_prefix,
-        encryption_key: type[str | Callable[[Any], str] | None] = None,
+        encryption_key: str | Callable[[Any], str] | None = None,
         **kwargs,
     ):
         if common_encryption_key and not encryption_key:  # local has priority
@@ -965,7 +1103,7 @@ def settingsclass(
     /,
     *,
     env_prefix="",
-    encryption_key: type[str | Callable[[Any], str] | None] = None,
+    encryption_key: str | Callable[[Any], str] | None = None,
     _salt: bytes = None,
 ):
     """Dynamically binds the necessary functions after applying the @dataclass decorator.
@@ -986,7 +1124,7 @@ def settingsclass(
             Defaults to None.
 
     Returns:
-        ClassType: Returns the decorated class
+        type: Returns the decorated class
     """
 
     # ↓ copied from dataclass
@@ -1034,10 +1172,12 @@ if __name__ == "__main__":  # pragma: no cover
             seed: Encrypted[RandomFloat[0, 2**16]] = 1.2
             api_id: RandomInt[1000, 9999] = 0
 
-        class gpt:
+        class llm:
             api_key: Encrypted[str] = ""
             backup_pin: Encrypted[int] = -1
-            model: str = "gpt-3.5-turbo"  # GPTモデルの識別文字列
+            model: str = "35t"  # GPTモデルの識別文字列
+            fallback_models: list[str] = ["4.1", "4.0", 5.0]
+            other_settings: tuple = (1, 2, "x")
             temperature: Hidden[float] = 5
             timeout = 300
 

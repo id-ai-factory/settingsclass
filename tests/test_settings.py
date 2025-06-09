@@ -95,11 +95,13 @@ class Settings:
         seed: Encrypted[RandomFloat[0, 2**16]] = 1.2
         api_id: RandomInt[1000, 9999] = 0
 
-    class gpt:
+    class llm:
         api_key: Encrypted[str] = ""
         backup_pin: Encrypted[int] = -1
         timeout = 300
         temperature: Hidden[float] = 5
+        versions: list[int] = [35, 40, 50]
+        extra: tuple = (5, "x")
 
 
 @settingsclass(
@@ -414,14 +416,17 @@ def validate_good_contents(config: Settings):
     assert config.program.seed == 99.8  # mod
     assert config.program.api_id == 9955  # mod
 
-    assert config.gpt.api_key == "sk-123kld-12141"  # dmod
-    assert config.gpt.backup_pin == 852  # mod
-    assert config.gpt.temperature == 0.15  # mod
-    assert config.gpt.timeout == 281
+    assert config.llm.api_key == "sk-123kld-12141"  # dmod
+    assert config.llm.backup_pin == 852  # mod
+
+    assert config.llm.temperature == 0.15  # mod
+    assert config.llm.timeout == 281
+    assert config.llm.versions == [10, 20, 30]  # mod
+    assert config.llm.extra == ("abc",)  # mod
 
     # Validate, that the implied parameter is also printed,
     # and at the correct place
-    assert "timeout: <int> = 281" in str(config).split("\n")[-3]
+    assert "timeout: <int> = 281" in str(config).split("\n")[-5]
 
 
 def validate_init_contents(config: Settings):
@@ -441,14 +446,16 @@ def validate_init_contents(config: Settings):
     assert isinstance(api_id := config.program.api_id, int)
     assert api_id >= 1000 and api_id <= 9999
 
-    assert config.gpt.api_key == ""
-    assert config.gpt.backup_pin == -1
-    assert config.gpt.temperature == 5
-    assert config.gpt.timeout == 300
+    assert config.llm.api_key == ""
+    assert config.llm.backup_pin == -1
+    assert config.llm.temperature == 5
+    assert config.llm.timeout == 300
+    assert config.llm.versions == [35, 40, 50]
+    assert config.llm.extra == (5, "x")
 
     # Validate, that the implied parameter is also printed,
     # and at the correct place (2nd from the back + 1x newline)
-    assert "timeout: <int> = 300" in str(config).split("\n")[-3]
+    assert "timeout: <int> = 300" in str(config).split("\n")[-5]
 
 
 def test_ram_only_init():
@@ -502,7 +509,7 @@ def test_object_not_static():
     validate_good_contents(config1)
     validate_good_contents(config2)
 
-    config1.gpt.api_key = "aqsd"
+    config1.llm.api_key = "aqsd"
     config1.program.seed = 21
 
     validate_good_contents(config2)
@@ -548,6 +555,52 @@ def test_missing_init_value_msg():
     )
     with pytest.raises(MissingSettingsError):
         _ = LocalSettingsFirst(join(PARENT_OUT, "plpl.ini"))
+
+
+def test_invalid_list_hint_msg():
+    @settingsclass
+    class LocalSettingsTooMany:
+        class subc:
+            too_many: tuple[int, str] = [1, "a"]
+
+    too_many_error_pattern = re.escape(
+        tr("iterable_class_annotation_too_many_1", "tuple[int, str]")
+    )
+    with pytest.raises(ValueError, match=too_many_error_pattern):
+        _ = LocalSettingsTooMany(join(PARENT_OUT, "list_hint_many.ini"))
+
+    @settingsclass
+    class LocalSettingsTooMany:
+        class subc:
+            too_many: tuple[()] = [1, "a"]
+
+    too_few_error_pattern = re.escape(
+        tr("iterable_class_annotation_too_few_1", "tuple[()]")
+    )
+    with pytest.raises(ValueError, match=too_few_error_pattern):
+        _ = LocalSettingsTooMany(join(PARENT_OUT, "list_hint_few.ini"))
+
+
+def test_unsupported_types():
+    @settingsclass
+    class LocalSettingsDictType:
+        class subc:
+            too_many: dict[int, str] = {1: "a"}
+
+    dictionary_type = re.escape(
+        tr("dictionary_not_supported_2", "{1: 'a'}", "dict[int, str]")
+    )
+    with pytest.raises(ValueError, match=dictionary_type):
+        _ = LocalSettingsDictType(join(PARENT_OUT, "dict_type.ini"))
+
+    @settingsclass
+    class LocalSettingsUnknownType:
+        class subc:
+            too_many: set[int] = {1, 2}
+
+    dictionary_type = re.escape(tr("unexpected_class_found_2", "set[int]", "{1, 2}"))
+    with pytest.raises(ValueError, match=dictionary_type):
+        _ = LocalSettingsUnknownType(join(PARENT_OUT, "unknown_type.ini"))
 
 
 def test_case_sensitivity():
@@ -690,7 +743,7 @@ def test_missing_section_and_variable(caplog):  # noqa: F811
             _ = Settings(join(PARENT_IN, "config_missing_section.ini"))
 
     # エラーがある場合、まずはエラーメッセージ内容、引数などが変わっていないことを確認して下さい
-    assert tr("missing_config_section_1", "gpt") in caplog.text
+    assert tr("missing_config_section_1", "llm") in caplog.text
     assert tr("config_param_missing_2", "program", "rfph") in caplog.text
     assert tr("config_param_missing_2", "program", "seed") in caplog.text
 
@@ -706,7 +759,7 @@ def test_extra_section_and_variables(caplog):  # noqa: F811
     assert (
         tr(
             "extra_config_parameter_2",
-            "gpt",
+            "llm",
             ["imaginary_variable", "also_doesnt_exist"],
         )
         in caplog.text
@@ -743,6 +796,7 @@ def test_invalid_param_type(caplog):  # noqa: F811
         tr("invalid_type_5", "program", "api_id", int, "bar", config.program.api_id)
         in caplog.text
     )
+    assert tr("json_decode_failed_3", '("abc","a")', tuple, "(5, 'x')") in caplog.text
 
     api_id = config.program.api_id
     assert api_id >= 1000 and api_id <= 9999
@@ -751,6 +805,9 @@ def test_invalid_param_type(caplog):  # noqa: F811
     assert rf >= 0 and rf <= 2**16
 
     assert config.program.colored_console_output
+
+    assert config.llm.versions == [35, 40, 50]
+    assert config.llm.extra == (5, "x")
 
 
 def test_type_confusion(caplog):  # noqa: F811
@@ -768,7 +825,7 @@ def test_type_confusion(caplog):  # noqa: F811
         in caplog.text
     )
     assert (
-        tr("param_type_is_string_but_looks_x_4", "gpt", "api_key", 3.0, "float")
+        tr("param_type_is_string_but_looks_x_4", "llm", "api_key", 3.0, "float")
         in caplog.text
     )
 
@@ -782,7 +839,7 @@ def test_need_encryption(caplog):
     caplog.clear()
     with caplog.at_level(logging.INFO):
         _ = Settings(copied_file)
-    assert tr("unencrypted_data_found_1", "['gpt/backup_pin']") in caplog.text
+    assert tr("unencrypted_data_found_1", "['llm/backup_pin']") in caplog.text
 
 
 # %% ENV check
@@ -834,10 +891,12 @@ def test_environmental_variables_instance():
                 f"{env_prefix}PROGRAM_RFPH": 34260.804,
                 f"{env_prefix}PROGRAM_SEED": 99.8,
                 f"{env_prefix}PROGRAM_API_ID": 9955,
-                f"{env_prefix}GPT_API_KEY": "sk-123kld-12141",
-                f"{env_prefix}GPT_BACKUP_PIN": 852,
-                f"{env_prefix}GPT_TEMPERATURE": 0.15,
-                f"{env_prefix}GPT_TIMEOUT": 281,
+                f"{env_prefix}LLM_API_KEY": "sk-123kld-12141",
+                f"{env_prefix}LLM_BACKUP_PIN": 852,
+                f"{env_prefix}LLM_TEMPERATURE": 0.15,
+                f"{env_prefix}LLM_TIMEOUT": 281,
+                f"{env_prefix}LLM_VERSIONS": [10, 20, 30],
+                f"{env_prefix}LLM_EXTRA": '["abc"]',
             }
         )
 
