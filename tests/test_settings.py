@@ -22,7 +22,7 @@ import pytest
 from loguru import logger
 from loguru_caplog import loguru_caplog as caplog  # noqa: F401
 
-from src.settingsclass import settingsclass as settingclass_lib
+import src.settingsclass.settingsclass as settingclass_lib
 from src.settingsclass.localizer import set_language, tr
 from src.settingsclass.settingsclass import (
     Encrypted,
@@ -970,6 +970,27 @@ def test_environmental_variables_decorator():
     del sed_default
     del sed_disabled
     del sed_specific
+
+
+def test_environmental_variables_logged(caplog):  # noqa: F811
+    """Applied environment variable keys are reported in the log"""
+
+    @settingsclass(env_prefix="LOGTEST")
+    class SettingsEnvLog:
+        class general:
+            secret: str = "foo"
+            unused: int = 1
+
+    old_values, temp_values = _set_env_values({"LOGTEST_GENERAL_SECRET": "bar"})
+    try:
+        caplog.clear()
+        with caplog.at_level(logging.INFO):
+            conf = SettingsEnvLog(join(PARENT_OUT, RandomString(8)))
+    finally:
+        _reset_env_values(old_values, temp_values)
+
+    assert conf.general.secret == "bar"
+    assert tr("using_key_var_from_env_1", ["LOGTEST_GENERAL_SECRET"]) in caplog.text
 
 
 # %%
