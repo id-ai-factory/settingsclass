@@ -7,10 +7,10 @@ from os.path import join
 import pytest
 
 from src.settingsclass.localizer import (
-    tr,
+    current_language,
     refresh_contents,
     set_language,
-    current_language,
+    tr,
 )
 
 xfail = pytest.mark.xfail

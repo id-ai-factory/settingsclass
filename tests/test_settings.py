@@ -1,53 +1,48 @@
-# -*- coding: utf-8 -*-
 """
 Created on 2023.05.24
 
-@author: uid7067
+@author: Robert KAJNAK
 """
 
 # %%
-from shutil import rmtree
-import sys
-from os.path import join, exists, isdir
-from os import makedirs, environ, listdir
-from contextlib import contextmanager
-import re
-from secrets import token_bytes
-import platform
-
-from configparser import DuplicateSectionError, DuplicateOptionError
 import logging
-from mock import patch
+import platform
+import re
+import sys
+import warnings
+from configparser import DuplicateOptionError, DuplicateSectionError
+from contextlib import contextmanager
+from os import environ, listdir, makedirs
+from os.path import exists, isdir, join
+from secrets import token_bytes
+from shutil import rmtree
+from unittest.mock import patch
 
 import pytest
 from loguru import logger
 from loguru_caplog import loguru_caplog as caplog  # noqa: F401
 
-
+from src.settingsclass import settingsclass as settingclass_lib
+from src.settingsclass.localizer import set_language, tr
 from src.settingsclass.settingsclass import (
-    settingsclass,
+    Encrypted,
+    Hidden,
+    MissingSettingsError,
     RandomFloat,
     RandomInt,
     RandomString,
-    Encrypted,
-    Hidden,
-    available_languages,
-    _encrypt_field,
     _decrypt_field,
+    _encrypt_field,
     _load_key,
-    encrypt_message,
-    decrypt_message,
-    _within_random_limits,
     _safe_decrypt_field,
+    _within_random_limits,
+    available_languages,
+    decrypt_message,
+    encrypt_message,
     hash_value,
-    MissingSettingsError,
+    settingsclass,
 )
-
 from src.settingsclass.settingsclass import set_language as set_language_settings
-from src.settingsclass import settingsclass as settingclass_lib
-from src.settingsclass.localizer import tr, set_language
-
-import warnings
 
 # %%
 PARENT_IN = join("tests", "input", "settingsclass")
@@ -229,7 +224,7 @@ def test_random_int():
         )
 
         rv = RandomFloat(78, 79, precision=3)
-        assert rv >= 78 and rv <= 79 and len(sv := str(rv)) <= 6 and sv[2] == "."
+        assert rv >= 78 and rv <= 79 and len(sv := str(rv)) <= 6 and sv[2] == "."  # noqa: RUF018 (debug flag is required for unittest)
         if len(sv) == 6:
             at_least_6_once = True
 
@@ -242,7 +237,7 @@ def test_random_int():
     # パラメータ型
     with pytest.raises(ValueError), pytest.warns(DeprecationWarning):
         warnings.warn(
-            "Just to ignore this specific wanring, since it trows Exception anyway",
+            "Just to ignore this specific warning, since it throws an Exception anyway",
             DeprecationWarning,
         )
         RandomInt(1.2, 3.3)
@@ -322,7 +317,7 @@ def test_random_float():
             if len(str(fv)) == str_len:
                 long_one_found = True
             cast_len = len(str(fv))
-            assert cast_len <= str_len, f"{str(fv)} over the limit of {str_len}"
+            assert cast_len <= str_len, f"{fv!s} over the limit of {str_len}"
         assert long_one_found
 
 

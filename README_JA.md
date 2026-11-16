@@ -442,7 +442,7 @@ Python 3.11+
 
 ## Decorator
 
-`@settingsclass(env_prefix: str = "", common_encryption_key: type[str | Callable[[Any], str] | None] = None, salt: bytes = None)`
+`@settingsclass(env_prefix: str = "", encryption_key: type[str | Callable[[Any], str] | None] = None, _salt: bytes = None)`
 
 ### ユースケース
 1. パラメータなし
@@ -465,7 +465,7 @@ class Settings:
 
 
 ```
-@settingsclass(file_path = "webconfig.ini", common_encryption_key = "my_encryption_key", _salt=b'\x87\x14~\x88\xf8\xfd\xb3&\xe2\xd4\xd9|@\xfb\x80\x9e')
+@settingsclass(file_path = "webconfig.ini", encryption_key = "my_encryption_key", _salt=b'\x87\x14~\x88\xf8\xfd\xb3&\xe2\xd4\xd9|@\xfb\x80\x9e')
 class Settings:
     [...]
 ```

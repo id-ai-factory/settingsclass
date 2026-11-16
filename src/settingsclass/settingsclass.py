@@ -1,33 +1,32 @@
-# -*- coding: utf-8 -*-
 """
 Created on Thu May 11 16:54:34 2023
 
-@author: uid7067
+@author: Robert KAJNAK
 """
 
 # %% Imports
 # from __future__ import annotations  # do NOT use! Makes strings become un-callable
 
-from dataclasses import dataclass, field, Field
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
-import hashlib
-from secrets import token_bytes
 import configparser
+import hashlib
+import json
+import os
 import random
 import re
 import secrets
-from types import GenericAlias, MethodType, FunctionType
-from typing import Any, Callable, TypeVar
-import os
-import json
+from collections.abc import Callable
+from dataclasses import Field, dataclass, field
+from secrets import token_bytes
 from threading import Lock
+from types import FunctionType, GenericAlias, MethodType
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 from loguru import logger
 
-from .localizer import tr
 from .localizer import set_language as _set_language
-
+from .localizer import tr
 
 # %%
 ENC_PREFIX = "?ENC"
@@ -36,6 +35,11 @@ DEFAULT_FLOAT_PRECISION = 3
 _key_lock = Lock()
 
 ClassType = TypeVar("ClassType")
+_SettingsT = TypeVar("_SettingsT", bound=type)
+
+# A key string (or None for the auto-generated key file),
+# or a pair of custom (encrypt, decrypt) functions
+_EncryptionKey = str | tuple[Callable[[Any], bytes], Callable[[bytes], str]] | None
 
 
 def available_languages():
@@ -66,7 +70,7 @@ def hash_value(value: str):
     return hash.hexdigest()
 
 
-def _ensure_parent_dirs(parent_dir: str = None) -> str:
+def _ensure_parent_dirs(parent_dir: str | None = None) -> str:
     """Attempts to create parent directory. If None is specified, the current lib directory is used"""
 
     if not parent_dir:
@@ -92,7 +96,7 @@ def _load_key_unchecked(full_path: str) -> bytes:
     return key_content
 
 
-def _load_key(plain_filename: str, parent_dir: str = None) -> bytes:
+def _load_key(plain_filename: str, parent_dir: str | None = None) -> bytes:
     """Loads a key from the specified path. If not parent_dir, the library directory is used"""
 
     true_filename = hash_value(plain_filename)
@@ -107,7 +111,7 @@ def _load_key(plain_filename: str, parent_dir: str = None) -> bytes:
         raise PermissionError(error_string) from ex
 
 
-def _load_guard(key, iv, salt: bytes = None):
+def _load_guard(key, iv, salt: bytes | None = None):
     if key:
         hash = hashlib.sha256()
         hash.update(key.encode("utf-8"))
@@ -115,14 +119,14 @@ def _load_guard(key, iv, salt: bytes = None):
     with _key_lock:
         if not salt:
             try:
-                _load_guard._salt
+                _load_guard._salt  # noqa: B018
             except AttributeError:
                 _load_guard._salt = _load_key("salty_boy")
             salt = _load_guard._salt
 
         if not key:
             try:
-                _load_key._key
+                _load_key._key  # noqa: B018
             except AttributeError:
                 _load_key._key = _load_key("keygirl")
             key = _load_key._key
@@ -135,14 +139,14 @@ def _load_guard(key, iv, salt: bytes = None):
 
 
 # TODO optimize this
-def encrypt_message(message: str, key=None, salt: bytes = None):
+def encrypt_message(message: str, key=None, salt: bytes | None = None):
     iv = secrets.token_bytes(AES.block_size)
     guard = _load_guard(key, iv, salt)
     message = pad(str(message).encode("utf-8"), AES.block_size)
     return iv + guard.encrypt(message)
 
 
-def decrypt_message(message: str, key=None, salt: bytes = None):
+def decrypt_message(message: str, key=None, salt: bytes | None = None):
     iv = message[: AES.block_size]
     guard = _load_guard(key, iv, salt)
     return unpad(guard.decrypt(message[AES.block_size :]), AES.block_size).decode(
@@ -470,9 +474,7 @@ def __repr__(self) -> str:
     return concated_str.rstrip(" ")
 
 
-def _encrypt_field(
-    message, encryption_key: tuple[Callable, Callable] | str, salt: bytes = None
-):
+def _encrypt_field(message, encryption_key: _EncryptionKey, salt: bytes | None = None):
     """Encrypts the field choosing a method depending on the encryption key"""
     if isinstance(encryption_key, tuple):
         message = encryption_key[0](message)
@@ -485,9 +487,7 @@ def _encrypt_field(
     return message
 
 
-def _decrypt_field(
-    message, encryption_key: tuple[Callable, Callable] | str, salt: bytes = None
-):
+def _decrypt_field(message, encryption_key: _EncryptionKey, salt: bytes | None = None):
     """Decrypts the field choosing a method depending on the encryption key"""
     if isinstance(encryption_key, tuple):
         message = encryption_key[1](message)
@@ -503,8 +503,8 @@ def _decrypt_field(
 def _safe_decrypt_field(
     message: str,
     parameter_name_debug: str,
-    encryption_key: tuple[Callable, Callable] | str,
-    salt: bytes,
+    encryption_key: _EncryptionKey,
+    salt: bytes | None,
 ) -> str:
     """Decrypts the target fields while only logging ValueError, UnicodeDecodeError exceptions"""
     true_val = message[len(ENC_PREFIX) :]
@@ -641,14 +641,14 @@ def update_config(self, config: configparser.ConfigParser) -> None:
 
 
 def update_from(
-    self, config: configparser.ConfigParser, encrypted_only: False
+    self, config: configparser.ConfigParser, encrypted_only: bool = False
 ) -> list[str]:
     """Overwrites current values with values contained in the specified config object
 
     Args:
         config (configparser.ConfigParser): ConfigParser object.
             User is responsible for population, case-sensitivity settings etc.
-        encrypted_only (False): Only copies values that are of type Encrypted
+        encrypted_only (bool): Only copies values that are of type Encrypted. Default: False
 
     Returns:
         list[str]: list of values that should have been encrypted in the ConfigParser object
@@ -822,7 +822,7 @@ def _load_settings_init(
 
 
 def _set_param_from_env(
-    section_class, section_name, parameter_name, parameter_type, env_prefix
+    section_class, section_name, parameter_name, parameter_type, env_prefix: str
 ):
     env_prefix = env_prefix.upper()
     environmental_key = f"{env_prefix}{env_prefix and '_'}{section_name.upper()}_{parameter_name.upper()}"
@@ -835,6 +835,7 @@ def _set_param_from_env(
             env_value = _unpack_json(env_value, parameter_type, default_parameter_value)
         env_value = _auto_cast_type(parameter_type, env_value)
         setattr(section_class, parameter_name, env_value)
+        used_keys.append(environmental_key)
 
     return used_keys
 
@@ -1017,9 +1018,9 @@ def _reset_removed_vals(cls, replaced_values):
 
 def _add_settings_layer(
     cls: type,
-    env_prefix: str = "",
-    common_encryption_key: str | tuple[Callable[[Any], str]] | None = None,
-    salt: bytes = None,
+    env_prefix: str | None = "",
+    common_encryption_key: _EncryptionKey = None,
+    salt: bytes | None = None,
 ) -> type:
     """Dynamically binds the necessary functions after applying the @dataclass decorator.
 
@@ -1029,7 +1030,7 @@ def _add_settings_layer(
             No check is performed if set to None.
             Defaults to "", in which case only the section and var names are used,
             e.g config.ui.color -> UI_COLOR
-        common_encryption_key (type[str  |  tuple[Callable[[Any], str]]  |  None], optional):
+        common_encryption_key (str | tuple[Callable[[Any], bytes], Callable[[bytes], str]] | None, optional):
             Key used to encrypt values. If no key is set when using the class constructor,
             this value is used. If you do not wish to use the default encryption method,
             you can also defy a tuple of encryption and decryption functions.
@@ -1080,8 +1081,8 @@ def _add_settings_layer(
     def double_init(
         self,
         *args,
-        env_prefix: str = env_prefix,
-        encryption_key: str | Callable[[Any], str] | None = None,
+        env_prefix: str | None = env_prefix,
+        encryption_key: _EncryptionKey = None,
         **kwargs,
     ):
         if common_encryption_key and not encryption_key:  # local has priority
@@ -1099,14 +1100,38 @@ def _add_settings_layer(
     return cls
 
 
+# Without these overloads, type checkers infer the return as `Callable | type`,
+# which turns the decorated class into Any
+@overload
+def settingsclass(
+    cls: _SettingsT,
+    /,
+    *,
+    env_prefix: str | None = "",
+    encryption_key: _EncryptionKey = None,
+    _salt: bytes | None = None,
+) -> _SettingsT: ...
+
+
+@overload
+def settingsclass(
+    cls: None = None,
+    /,
+    *,
+    env_prefix: str | None = "",
+    encryption_key: _EncryptionKey = None,
+    _salt: bytes | None = None,
+) -> Callable[[_SettingsT], _SettingsT]: ...
+
+
 # placeholder for the wrapper
 def settingsclass(
     cls=None,
     /,
     *,
-    env_prefix="",
-    encryption_key: str | Callable[[Any], str] | None = None,
-    _salt: bytes = None,
+    env_prefix: str | None = "",
+    encryption_key: _EncryptionKey = None,
+    _salt: bytes | None = None,
 ):
     """Dynamically binds the necessary functions after applying the @dataclass decorator.
 
@@ -1116,7 +1141,7 @@ def settingsclass(
             No check is performed if set to None.
             Defaults to "", in which case only the section and var names are used,
             e.g config.ui.color -> UI_COLOR
-        encryption_key (type[str  |  Callable[[Any], str]  |  None], optional):
+        encryption_key (str | tuple[Callable[[Any], bytes], Callable[[bytes], str]] | None, optional):
             Key used to encrypt values. Takes priority over decorator setting
             this value is used.If you do not wish to use the default encryption method,
             you can also defy a tuple of encryption and decryption functions.

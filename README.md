@@ -431,7 +431,7 @@ Python 3.11+
 
 Settings provided to the decorator will be shared across class instances. Settings provided at object instantiation take precedence. 
 
-`@settingsclass(env_prefix: str = "", common_encryption_key: type[str | Callable[[Any], str] | None] = None, salt: bytes = None)`
+`@settingsclass(env_prefix: str = "", encryption_key: type[str | Callable[[Any], str] | None] = None, _salt: bytes = None)`
 
 ### Use cases: 
 1. No arguments  
@@ -447,7 +447,7 @@ Without specifying a parameter all instantiations will look at the same webconfi
 Specifying an encryption key will mean that all subsequent instantiations of the class will use that key unless otherwise specified.
 Since the `_salt` parameter is specified, copying the file over to an other machine and using "my_encryption_key" will result in a correctly read settings file.
 ```
-@settingsclass(file_path = "webconfig.ini", common_encryption_key = "my_encryption_key", _salt=b'\x87\x14~\x88\xf8\xfd\xb3&\xe2\xd4\xd9|@\xfb\x80\x9e')
+@settingsclass(file_path = "webconfig.ini", encryption_key = "my_encryption_key", _salt=b'\x87\x14~\x88\xf8\xfd\xb3&\xe2\xd4\xd9|@\xfb\x80\x9e')
 class Settings:
     [...]
 ```

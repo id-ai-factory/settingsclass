@@ -1,25 +1,24 @@
-# -*- coding: utf-8 -*-
 """
 Created on 2023.05.24
 
-@author: uid7067
+@author: Robert KAJNAK
 """
 
 # %%
-from typing import Generator
-from os.path import join, split, isfile, isdir, splitext
-from os import listdir
-import warnings
 import ast
 import re as regex
+import warnings
+from collections.abc import Generator
+from os import listdir
+from os.path import isdir, isfile, join, split, splitext
 
 import pytest
 
 from src.settingsclass.localizer import (
-    tr,
-    refresh_contents,
     current_language,
+    refresh_contents,
     set_language,
+    tr,
 )
 
 xfail = pytest.mark.xfail
@@ -51,7 +50,7 @@ def filtered_files(
     folder: str,
     extensions: list[str],
     recursive: bool = False,
-    exclude: str = None,
+    exclude: str | None = None,
 ) -> list[str]:
     """
     フォルダーのすべてのファイルをリストアップする。
@@ -102,7 +101,7 @@ def pyfiles_ast():
         tuple[str, ast.Node]: file_path, root
     """
     try:
-        pyfiles_ast.files
+        pyfiles_ast.files  # noqa: B018
     except AttributeError:
         # starts with venv or .venv
         files = filtered_files(
@@ -163,7 +162,7 @@ def py_get_tr_key_safe(node, file_path) -> str:
 
 
 def py_tr_calls(
-    ast_root_generator: Generator[tuple[str, ast.Module], None, None] = None,
+    ast_root_generator: Generator[tuple[str, ast.Module], None, None] | None = None,
 ) -> Generator[tuple[str, int, str, int], None, None]:
     """Pyファイルからすべての【tr】関数呼び出しを集まる。
 
@@ -245,7 +244,7 @@ def test_param_count_in_csv():
 
 
 def test_param_count_in_code(
-    ast_root_generator: Generator[tuple[str, ast.Module], None, None] = None,
+    ast_root_generator: Generator[tuple[str, ast.Module], None, None] | None = None,
 ):
     """国際化ファイルにキーに注釈している数と翻訳ストリングにある｛｝の数の確認"""
 
@@ -275,7 +274,7 @@ def test_mixed_position_declaration_in_csv():
 
 
 def test_non_existent_key(
-    ast_root_generator: Generator[tuple[str, ast.Module], None, None] = None,
+    ast_root_generator: Generator[tuple[str, ast.Module], None, None] | None = None,
 ):
     """存在しないキーを使っていないことを確認する"""
 
@@ -288,7 +287,7 @@ def test_non_existent_key(
 
 
 def test_unused_keys(
-    ast_root_generator: Generator[tuple[str, ast.Module], None, None] = None,
+    ast_root_generator: Generator[tuple[str, ast.Module], None, None] | None = None,
 ):
     """国際化ファイルに使われていないキーのないことを確認する"""
 
