@@ -1,5 +1,5 @@
 [![Python Tests](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml/badge.svg)](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml)
-[![Tests Status](./tests/reports/coverage-badge.svg?dummy=8484744)](./tests/reports/www/index.html)  
+[![Tests Status](https://raw.githubusercontent.com/id-ai-labo/settingsclass/main/tests/reports/coverage-badge.svg?dummy=8484744)](https://github.com/id-ai-labo/settingsclass/blob/main/tests/reports/www/index.html)  
 
 
 # settingsclass  
@@ -19,18 +19,18 @@ In this example only key concepts are presented and assumes you like tinkering m
 **If you are unfamiliar with dataclass or configparser, or would like a more detailed explanation skip to example 2**
 
 ```
-from settingsclass import settingsclass, RandomString, RandomInt, RandomFloat, Hidden, Encrypted
+from settingsclass import settingsclass, SettingsTypeHints, RandomString, RandomInt, RandomFloat, Hidden, Encrypted
 
 @settingsclass
-class WebConfig:
+class WebConfig(SettingsTypeHints):
     class console:
         language: str = "en"
         machine_id: RandomString[4] = ""
         backdoor_password: Encrypted[RandomString[14, 20]] = ""
         debug_pin: Encrypted[RandomInt[1000, 9999]] = 0
-        maxiumum_message_per_second: int = 5
+        maximum_message_per_second: int = 5
         colored_output: Hidden[bool] = True
-        """Disable if the console prints the color code characters such as `^[[31mError!^[[0mZ`"""
+        """Disable if the console prints the color code characters such as `^[[31mError!^[[0m`"""
 
     class agent:
         api_key: Encrypted[str] = ""
@@ -39,16 +39,16 @@ class WebConfig:
 # Save to or read from "config.ini". Custom path can also be passed
 config = WebConfig()
 
-# Hinting a type as RandomInt, RandomFloat and RandomString will generate
-# will cause the class instantiation to generate a primitive within specified limits
+# Hinting a type as RandomInt, RandomFloat or RandomString will cause
+# the class instantiation to generate a primitive within the specified limits
 # The default value after [=] is ignored
 m_id = config.console.machine_id 
-print(f'{m_id} w/ {type(m_id)}) # prints a four character <string> e.g. 4G_b
+print(f'{m_id} w/ {type(m_id)}') # prints a four character <string> e.g. 4G_b
 
 # Instance variables type hinted with Encrypted[type] return objects of their 
 # encapsulated types, but are encrypted when saving to disk
 dbp = config.console.debug_pin
-print(f'{dbp} w/ {type(dbp)}) # prints a 4 digit int e.g. "4521 w/ <class 'int'>"
+print(f'{dbp} w/ {type(dbp)}') # prints a 4 digit int e.g. "4521 w/ <class 'int'>"
 
 # The config.ini file will have the value encrypted similar to:
 # debug_pin = ?ENC22e6de0f80d81f54fbae752d27cd5663e693758554d3520466e7c90423fd3997
@@ -61,7 +61,7 @@ print(f'{dbp} w/ {type(dbp)}) # prints a 4 digit int e.g. "4521 w/ <class 'int'>
 # and are not saved/read from  the config file, unless already present.
 # The string directly below it is treated as a docstring and is shown when hovered over the member
 co = config.console.colored_output
-print(f'{co} w/ {type(co)}) # prints "True w/ <class 'bool'>"
+print(f'{co} w/ {type(co)}') # prints "True w/ <class 'bool'>"
 
 # ---
 # Modified instances can be saved to an arbitrary path
@@ -92,10 +92,10 @@ The appropriate choice during definition seems to be <code>class Settings</code>
 
 
 ```
-from settingsclass import settingsclass, RandomString, RandomInt, RandomFloat, Hidden, Encrypted
+from settingsclass import settingsclass, SettingsTypeHints, RandomString, RandomInt, RandomFloat, Hidden, Encrypted
 
 @settingsclass
-class WebConfig:
+class WebConfig(SettingsTypeHints):
     class console:
         # We would like to support multiple languages.
         # This uses language codes, as such it will be stored as a string
@@ -173,7 +173,7 @@ api_key =
 seed = 8881.079
 ```
 
-We would like the to have a more easily readable `machine_id`, and the `api_key` is empty at the moment, so we modify the two values in the config.ini file.
+We would like to have a more easily readable `machine_id`, and the `api_key` is empty at the moment, so we modify the two values in the config.ini file.
 
 ```
 [console]
@@ -203,7 +203,7 @@ api_key = ?ENCd60d7fad60db92ace78261377c629ebad7926916bcae90a4a8aea5a2c296e4f8c7
 seed = 8881.079
 ```
 
-We can also print the whole class, or a one of the sections. The data will be decrypted in plain text form, therefore care needs to be taken data during logging. If we would only like to see the contents of a section we can use
+We can also print the whole class, or one of its sections. Encrypted values are printed decrypted, in plain text, so care needs to be taken when logging them.
 
 ```
 print(f"Complete class:\n{config}")
@@ -247,7 +247,7 @@ This should print a float value followed by the confirmed float type.
 
 `Value 8881.079 with type <class 'float'>`
 
-*The precision of the floats can be set by using the precision parameter `RandomFloat[0, 2, precision=5]`*
+*The precision of the floats can be set with the third parameter, e.g. `RandomFloat[0, 2, 5]`*
 
 ### Manual saving
 
@@ -255,7 +255,7 @@ Continuing the scenario, let's say that we have a webpage where the admin can ch
 We would like to save to disk as to use the same value after the program restarts.  
 We can do this using the `settingsclass` member function `save_to_file`.
 
-For this example, the admin has changed the value to TIG1. The relevant code would have the same affect as below:
+For this example, the admin has changed the value to TIG1. The relevant code would have the same effect as below:
 ```
 config.console.machine_id = "TIG1"
 ```
@@ -275,7 +275,7 @@ As the above code demonstrates `save_to_file` can be called without a parameter,
 
 Let's check the changed values between the two files:
 ```
-old_value = config.console.machine_id # int, therefore copy etc. is not needed
+old_value = config.console.machine_id # str is immutable, therefore copy etc. is not needed
 
 # re-read from disk
 config = WebConfig()
@@ -292,7 +292,7 @@ print(f"Backup = {config_bk.console.machine_id}")
 
 ## Type checking
 
-In the previous section we have set a string value to a variable that has been type hinted as string. Let's see a scenario, where the type is accidentally mistaken and a string value is set to a variable that has been type hinted as int.  
+In the previous section we have set a string value to a variable that has been type hinted as string. Let's see a scenario, where the type is accidentally mistaken and a string value is set to a variable that has been type hinted as float.  
 ```
 config.agent.seed = "abcd"
 config.save_to_file()
@@ -316,7 +316,7 @@ This will output e.g. `11392.713`
 
 The opposite case, type hinting a variable as a string, but meaning to use an int is also a possibility. Since in this case, it is possible that it is intentional, a warning is shown, but the value itself is not changed.
 
-To simulate this, we set the following to values. We actually wanted to define language as an index in the list of available languages and have the machine id shown or hidden. An other possibility is the one modifying the config.ini file has mistaken what the values represent. The result is the same in both cases and we can see what happens by running the following code. The same would happen if we modified the values in the ini file.
+To simulate this, we set the following two values. We actually wanted to define language as an index in the list of available languages and have the machine id shown or hidden. An other possibility is the one modifying the config.ini file has mistaken what the values represent. The result is the same in both cases and we can see what happens by running the following code. The same would happen if we modified the values in the ini file.
 
 ```
 config.console.language = 3
@@ -332,15 +332,15 @@ config = WebConfig()
 lang = config.console.language
 m_id = config.console.machine_id
 print(f"Lang = {lang} of type {type(lang)}")
-print(f"Password = {m_id} of type {type(lang)}")
+print(f"Machine ID = {m_id} of type {type(m_id)}")
 ```
 
 The output of the code will be two warnings about potential type mismatches, but ultimately the type and value of the variables will be unaffected 
 ```
-2024-XX-YY HH:MM:SS.MSS | WARNING  | settingsclass.settingsclass:warn_confusing_types:576 - The parameter <console> in section <language> with value 3 of the settings file is a string but looks like a int
-2024-XX-YY HH:MM:SS.MSS | WARNING  | settingsclass.settingsclass:warn_confusing_types:560 - The parameter <console> in section <machine_id> with value False of the settings file is a string but looks like a bool
+2024-XX-YY HH:MM:SS.MSS | WARNING  | settingsclass.settingsclass:warn_confusing_types:576 - The parameter <language> in section <console> with value 3 of the settings file is a string but looks like a int
+2024-XX-YY HH:MM:SS.MSS | WARNING  | settingsclass.settingsclass:warn_confusing_types:560 - The parameter <machine_id> in section <console> with value False of the settings file is a string but looks like a bool
 Lang = 3 of type <class 'str'>
-Password = False of type <class 'str'>
+Machine ID = False of type <class 'str'>
 ```
 
 ## Advanced settings
@@ -433,7 +433,7 @@ Python 3.11+
 
 Settings provided to the decorator will be shared across class instances. Settings provided at object instantiation take precedence. 
 
-`@settingsclass(env_prefix: str = "", encryption_key: type[str | Callable[[Any], str] | None] = None, _salt: bytes = None)`
+`@settingsclass(env_prefix: str | None = "", encryption_key: str | tuple[Callable[[Any], bytes], Callable[[bytes], str]] | None = None, _salt: bytes | None = None)`
 
 ### Use cases: 
 1. No arguments  
@@ -445,27 +445,30 @@ class Settings:
 ```
 --- 
 2. Specific arguments  
-Without specifying a parameter all instantiations will look at the same webconfig.ini file. **If a folder `my_folder` is specified, the class will look for `my_folder/config.ini`**  
-Specifying an encryption key will mean that all subsequent instantiations of the class will use that key unless otherwise specified.
+The file path is passed to the constructor. **If a folder `my_folder` is specified, the class will look for `my_folder/config.ini`**  
+Specifying an encryption key in the decorator means that all instances of the class will use that key, unless a different one is passed to the constructor.
 Since the `_salt` parameter is specified, copying the file over to an other machine and using "my_encryption_key" will result in a correctly read settings file.
 ```
-@settingsclass(file_path = "webconfig.ini", encryption_key = "my_encryption_key", _salt=b'\x87\x14~\x88\xf8\xfd\xb3&\xe2\xd4\xd9|@\xfb\x80\x9e')
+@settingsclass(encryption_key="my_encryption_key", _salt=b'\x87\x14~\x88\xf8\xfd\xb3&\xe2\xd4\xd9|@\xfb\x80\x9e')
 class Settings:
     [...]
+
+conf = Settings("webconfig.ini")
 ```
 --- 
-3. In-memory only settings/user custom file type
+3. In-memory only settings/user custom file type  
+Passing `None` as the path keeps the settings in memory only, no file is read or written.
 ```
-@settingsclass(None)
+@settingsclass
 class Settings:
     [...]
+
+conf = Settings(None)
 ```
 
 The file can also be saved later manually using 
 ```
-conf = Settings(None)
 conf.save_to_file("now_im_ready.ini")
-
 ```
 
 ## Type checker support (optional)
@@ -489,15 +492,36 @@ This import is completely optional: `SettingsTypeHints` only contains type decla
 
 ## Constructor
 
-All arguments of the decorator can also be overridden by the constructor. To avoid accidental setting in regards to encryption, the decorator uses `common_encryption_key` while the constructor uses encryption_key. Other parameters have identical names.
+`Settings(path: str | None = "config.ini", secret_config_path: str | None = "/run/secrets/flask_settings", case_sensitive: bool = False, *, env_prefix: str | None = "", encryption_key = None)`
+
+- `path`: the ini file to read from and write to. If it does not exist, it is generated with the default values. `None` keeps the settings in memory only
+- `secret_config_path`: if this file exists, it is used instead of `path` (see [Docker secrets](https://docs.docker.com/engine/swarm/secrets/)). `None` disables it
+- `case_sensitive`: if True, section and variable names are case sensitive
+- `env_prefix` and `encryption_key` override the values set in the decorator. `_salt` can only be set in the decorator
+
+## Environment variables
+
+After the ini file is loaded, each value can be overridden by an environment variable named `<PREFIX>_<SECTION>_<VARIABLE>` (upper case), where the prefix is `env_prefix`. With the default `env_prefix=""` the name is only `<SECTION>_<VARIABLE>`, e.g. `CONSOLE_LANGUAGE`. Setting `env_prefix=None` disables the check.  
+Values are cast to the hinted type; lists and tuples are parsed as JSON (e.g. `["a", "b"]`). They are not written to the ini file when loading, but `save_to_file` saves the current values, including these.
+
+```
+@settingsclass(env_prefix="APP")
+class Settings:
+    class console:
+        language: str = "en"
+
+# with APP_CONSOLE_LANGUAGE=ja set in the environment
+conf = Settings()
+print(conf.console.language)  # ja
+```
 
 
 ## Variable types
 
 ### Random String
-`RandomString[max_length, min_length=-1, /, random_function: Callable = secrets.token_urlsafe]`
+`RandomString[min_length, max_length=-1, *, random_function: Callable = secrets.token_urlsafe]`
 
-Generates a random string between the specified lengths. If `max` is not specified, the  string will have a fixed length equal to the specified min length. Optionally a the `random_function` can also be specified which will be called as `random_function(max_length)[:true_length]`. The types can also be called directly to test them e.g. `RandomString(5)` will return e.g. `Ku_nR`. Uses `secrets.token_urlsafe`  
+Generates a random string between the specified lengths. If `max_length` is not specified, the string will have a fixed length of `min_length`. Optionally the `random_function` can also be specified which will be called as `random_function(max_length)[:true_length]`. The types can also be called directly to test them e.g. `RandomString(5)` will return e.g. `Ku_nR`. Uses `secrets.token_urlsafe`  
 **The default value specified by user is ignored.**
 
 ### RandomInt[min_value, max_value, /, random_function] / RandomFloat[~]
@@ -514,9 +538,9 @@ The parameter specified will not be written to the file when specified, but will
 ### Encrypted[type]
 Encryption is based on AES128 (256 is slower with no practical benefits).  
 By default both the key and salt are randomly generated and saved inside the library directory. The IV is included within the encrypted string's field.  
-This can be overwritten by specifying the `encryption_key` per object or `common_encryption_key` at the class definition level.
-This can be either a string or a function handle that will be called as is.  
-Salt is generated and saved per environment, ensuring that a config file cannot be copy-pasted from one environment to an other, providing an other layer of protection over the encryption key. For environments where the directory is not user-writeable the salt can be also be specified in binary string form. Per class specification is not supported, as it is not the intended use-case.    
+This can be overwritten by specifying `encryption_key` in the decorator (per class) or in the constructor (per object).
+The key can be either a string, or a tuple of `(encrypt, decrypt)` functions replacing the default encryption method: `encrypt` receives the value and returns `bytes`, `decrypt` receives those `bytes` and returns a `str`.  
+Salt is generated and saved per environment, ensuring that a config file cannot be copy-pasted from one environment to an other, providing an other layer of protection over the encryption key. For environments where the directory is not user-writeable the salt can also be specified in binary string form, using the `_salt` decorator argument. Per object specification is not supported, as it is not the intended use-case.    
 An example of a full specification would be:  
 
 ```
@@ -535,11 +559,11 @@ Supports any type that can be cast to string
 
 ### Saving to an ini file
 `save_to_file(self, path=None)`  
-Saves to contents (including encryption) to the specified path. If the path is left as None, the file path used to load the file is used
+Saves the contents (including encryption) to the specified path. If the path is left as None, the file path used to load the file is used
 
 ### Loading from an ini file
-`update_from(self, config: configparser.ConfigParser, secrets_only: False) -> list[str]`  
+`update_from(self, config: configparser.ConfigParser, encrypted_only: bool = False) -> list[str]`  
 
-configparser handle should be prepared by the user, including case sensitivity settings etc. Returns a list of fields that should have been encrypted but were not. For automatic encryption please use the constructor
+configparser handle should be prepared by the user, including case sensitivity settings etc. Returns a list of fields that should have been encrypted but were not. For automatic encryption please use the constructor. `encrypted_only=True` is not implemented yet.
 
 

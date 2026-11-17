@@ -460,6 +460,17 @@ def test_ram_only_init():
     validate_init_contents(ram_settigns)
 
 
+def test_ram_only_save():
+    """In-memory settings can be saved to a file later"""
+    path = join(PARENT_OUT, f"{RandomString(8)}.ini")
+    with silent_output():
+        ram_settings = Settings(None)
+        ram_settings.save_to_file(path)
+        from_disk = Settings(path)
+    assert exists(path)
+    assert from_disk.program.lang == ram_settings.program.lang
+
+
 def test_settings_read():
     """りそうな場合の内容確認"""
     # UTF-8とキャストのテストも含む

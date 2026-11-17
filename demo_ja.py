@@ -6,6 +6,7 @@
 # %% インポート
 from settingsclass import (
     settingsclass,
+    SettingsTypeHints,
     Hidden,
     Encrypted,
     RandomFloat,
@@ -33,7 +34,7 @@ set_language("ja")
 
 
 @settingsclass
-class WebConfig:
+class WebConfig(SettingsTypeHints):
     class console:
         # 複数の言語をサポートするための設定
         # 言語コードを文字列として保存される

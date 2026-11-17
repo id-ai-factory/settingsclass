@@ -1,5 +1,5 @@
-![image](https://github.com/user-attachments/assets/16ff1e5a-bf35-412c-9dc2-65bc98f9661e)[![Python Tests](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml/badge.svg)](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml)
-[![Tests Status](./tests/reports/coverage-badge.svg?dummy=8484744)](./tests/reports/www/index.html)  
+[![Python Tests](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml/badge.svg)](https://github.com/id-ai-labo/settingsclass/actions/workflows/tests.yml)
+[![Tests Status](https://raw.githubusercontent.com/id-ai-labo/settingsclass/main/tests/reports/coverage-badge.svg?dummy=8484744)](https://github.com/id-ai-labo/settingsclass/blob/main/tests/reports/www/index.html)  
 
 # settingsclass  
 [English Version](README.md)
@@ -17,18 +17,18 @@ Developed by [株式会社 ID AI Factory](https://www.ai-factory.co.jp)
 **dataclassやconfigparserについてよく知らない場合もしくは、より詳しい説明を希望する場合は、例2へ進んでください**  
 
 ```
-from settingsclass import settingsclass, RandomString, RandomInt, RandomFloat, Hidden, Encrypted
+from settingsclass import settingsclass, SettingsTypeHints, RandomString, RandomInt, RandomFloat, Hidden, Encrypted
 
 @settingsclass
-class WebConfig:
+class WebConfig(SettingsTypeHints):
     class console:
         language: str = "en"
         machine_id: RandomString[4] = ""
         backdoor_password: Encrypted[RandomString[14, 20]] = ""
         debug_pin: Encrypted[RandomInt[1000, 9999]] = 0
-        maxiumum_message_per_second: int = 5
+        maximum_message_per_second: int = 5
         colored_output: Hidden[bool] = True
-        """コンソールが `^[[31mError!^[[0mZ` のようなカラーコード文字を出力する場合は、これをFalseに設定してください"""
+        """コンソールが `^[[31mError!^[[0m` のようなカラーコード文字を出力する場合は、これをFalseに設定してください"""
 
     class agent:
         api_key: Encrypted[str] = ""
@@ -39,42 +39,37 @@ config = WebConfig()
 
 # 型の指定を RandomInt、RandomFloat、RandomString とすると、
 # クラスインスタンス化の際、指定された範囲内でプリミティブが生成される
-[=] の後のデフォルト値は無視される
+# [=] の後のデフォルト値は無視される
 m_id = config.console.machine_id 
-print(f'{m_id} w/ {type(m_id)}) # <string>型の4文字長さの文字列を出す、例： 4G_b
+print(f'{m_id} w/ {type(m_id)}') # <string>型の4文字長さの文字列を出す、例： 4G_b
 
 # インスタンス変数は、Encrypted[type] オブジェクトで型がヒントされるが、 
 # エンカプセル化された型を持つオブジェクトを返すが、ディスクに保存する際は暗号化される
 dbp = config.console.debug_pin
-print(f'{dbp} w/ {type(dbp)}) # 4桁の整数を表示。例：「4521 w/ <class 'int'>」
+print(f'{dbp} w/ {type(dbp)}') # 4桁の整数を表示。例：「4521 w/ <class 'int'>」
 
 # config.ini ファイルには、encrypted の値として次のような値が設定される。
 # debug_pin = ?ENC22e6de0f80d81f54fbae752d27cd5663e693758554d3520466e7c90423fd3997
 
 # iniファイルに新しいカスタム値を指定することもでき、その値は次にconfig = WebConfig()が呼び出されたときに暗号化される。
-# config = WebConfig() が次に呼び出されたときに暗号化される。
 
 # 隠された[型]変数も、カプセル化された型の値を生成し、
 # すでに存在していない限り、設定ファイルに保存されたり読み込まれたりすることはない。
-# 直下に書いている文字列はdocstringと扱い、カーさを合わせると表示される
+# 直下に書いている文字列はdocstringと扱い、カーソルを合わせると表示される
 co = config.console.colored_output
-print(f'{co} w/ {type(co)}) # プリント結果： "True w/ <class 'bool'>"
+print(f'{co} w/ {type(co)}') # プリント結果： "True w/ <class 'bool'>"
 
-# --
-# すでに存在していない限り、configファイルから# 隠された[]値は保存/読み込まれない
-co = config.console.colored_output
-print(f'{co} w/ {type(co)}) # プリント結果： "True w/ <class 'bool'>"
-
+# ---
 # 変更されたインスタンスは任意のパスに保存できる
 # デフォルト値は、読み込み元のパスである
 # クラスインスタンスを変更する際は、変数の型は強制されない。
-# クラスインスタンスの修正時には、ディスクからの読み込み時のみ、
+# 型が強制されるのは、ディスクから読み込む時のみ
 config.agent.seed = "foo"
 config.save_to_file("config2.ini")
 
 config2 = WebConfig("config2.ini") # エージェント/シードの型不一致警告を表示する
 print(config2.agent.seed) # ランダムな数字、例えば「4281.154」を Float 型で表示
-``````
+```
  
 # 詳細な使用例 (2/2)
 
@@ -84,7 +79,7 @@ print(config2.agent.seed) # ランダムな数字、例えば「4281.154」を F
 可読性を高めるため、コンソール関連の設定とチャットエージェントの設定の2つのセクションを定義する。 
 
 
-以下の説明のコードは、[こちら](demo_ja.py)でもご覧いただけます*
+*以下の説明のコードは、[こちら](demo_ja.py)でもご覧いただけます*
 <details>
 <summary><i>命名規則に関する注記</i></summary>
 定義時には<code>class Settings</code>/<code>class Section</code>（大文字）が適切と思われるが、使用時には同じ名前で呼ばれる。したがって、ほとんどの使用時にはオブジェクトとなるため、<code>class Settings</code>/<code>class section</code>（内部小文字）の使用が推奨される。実行時に名前の大文字小文字を変更することも検討したが、特に<code>ClassNamesOfMultipleWords</code> -> <code>class_names_of_multiple_words</code>を使用する場合は、かえって混乱を招くと考えた。
@@ -92,13 +87,13 @@ print(config2.agent.seed) # ランダムな数字、例えば「4281.154」を F
 
 
 ```
-from settingsclass import settingsclass, RandomString, RandomInt, RandomFloat, Hidden, Encrypted, set_language
+from settingsclass import settingsclass, SettingsTypeHints, RandomString, RandomInt, RandomFloat, Hidden, Encrypted, set_language
  
 # まずはコンソールの出力言語を日本語に設定しよう
 set_language("ja")
 
 @settingsclass
-class WebConfig:
+class WebConfig(SettingsTypeHints):
     class console:
         # 複数の言語をサポートするための設定
         # 言語コードを文字列として保存される
@@ -168,7 +163,7 @@ config = WebConfig()
 
 ```
 [console]
-language = en
+language = ja
 machine_id = b8_Q
 backdoor_password = ?ENC5d51bb10d835ff680ce50c99dc512678cb6cb3525d18129a56c7b417c6847339790dbe0cd264ca201a7b82a0dbb4c130
 debug_pin = ?ENC7cac31ac5bb2a5a6078d770b17a5a6728766adafa43409a2917b0c09903fcce5
@@ -184,7 +179,7 @@ seed = 8881.079
 
 ```
 [console]
-language = en
+language = ja
 machine_id = GIT0
 backdoor_password = ?ENC5d51bb10d835ff680ce50c99dc512678cb6cb3525d18129a56c7b417c6847339790dbe0cd264ca201a7b82a0dbb4c130
 debug_pin = ?ENC7cac31ac5bb2a5a6078d770b17a5a6728766adafa43409a2917b0c09903fcce5
@@ -199,7 +194,7 @@ seed = 8881.079
 
 ```
 [console]
-language = en
+language = ja
 machine_id = GIT0
 backdoor_password = ?ENC5d51bb10d835ff680ce50c99dc512678cb6cb3525d18129a56c7b417c6847339790dbe0cd264ca201a7b82a0dbb4c130
 debug_pin = ?ENC7cac31ac5bb2a5a6078d770b17a5a6728766adafa43409a2917b0c09903fcce5
@@ -225,7 +220,7 @@ print(f"A section only:\n{config.agent}")
 Complete class:
 SettingsClass [WebConfig]:
 console: 
-	language: <str> = en
+	language: <str> = ja
 	machine_id: <RandomString[4]> = YM5W
 	backdoor_password: <Encrypted[RandomString[14,20]]> = Qt15Jk0jprCwqFQQs2ob
 	debug_pin: <Encrypted[RandomInt[1000,9999]]> = 1516
@@ -256,7 +251,7 @@ print_val_and_type(config.agent.seed)
 
 `<class 'float'> 型の値は：8796.928`
 
-*浮動小数点の精度は、`RandomFloat[0, 2, precision=5]`という精度パラメータを使用することで設定できる*
+*浮動小数点の精度は、3つ目のパラメータで設定できる。例：`RandomFloat[0, 2, 5]`*
 
 ### 手動保存
 
@@ -271,7 +266,7 @@ print_val_and_type(config.agent.seed)
 config.console.machine_id = "TIG1"
 ```
 
-上記のコードを実行しても、メモリ内のオブジェクトが変更されるだけで、iniファイルとは自動的に同期されるためsave関数は手動で呼び出す。
+上記のコードを実行しても、メモリ内のオブジェクトが変更されるだけで、iniファイルとは自動的に同期されないため、save関数を手動で呼び出す。
 
 ```
 # 保存する前にバックアップを取る
@@ -288,9 +283,9 @@ iniファイルとPythonオブジェクトの両方に変更が反映されて�
 2つのファイルで変更された値を確認しよう。
 
 ```
-old_value = config.console.machine_id # int型なので、コピーなどは必要ない
+old_value = config.console.machine_id # 文字列は変更不可（immutable）なので、コピーなどは必要ない
 
-# ディスクから際読み込む
+# ディスクから再読み込みする
 config = WebConfig()
 verify_value = config.console.machine_id 
 
@@ -299,13 +294,13 @@ config_bk = WebConfig("config_bk.ini")
 
 # 値を比べる
 print(f"メモリー内の値： {old_value}")
-print(f"際読み込んだ値： {config.console.machine_id}")
+print(f"再読み込みした値： {config.console.machine_id}")
 print(f"バックアップの値： {config_bk.console.machine_id}")
 ```
 
 ## タイプチェック
 
-前節では、型ヒントが string 型として指定されている変数に string 型の値を代入した。ここでは、型を誤って int 型として指定されている変数に string 型の値を代入してしまうシナリオを見てみよう。 
+前節では、型ヒントが string 型として指定されている変数に string 型の値を代入した。ここでは、型を誤って float 型として指定されている変数に string 型の値を代入してしまうシナリオを見てみよう。 
 
 ```
 config.agent.seed = "abcd"
@@ -330,7 +325,7 @@ config = WebConfig()
 print(config.agent.seed)
 ```
 
-`11392.713`のようなが出力される。
+`11392.713`のような値が出力される。
 
 その逆の場合、変数を文字列として暗示しているが、実際にはintを使用するというケースも考えられます。この場合、意図的な可能性があるため、警告が表示されますが、値自体は変更されません。
 
@@ -352,19 +347,21 @@ config = WebConfig()
 lang = config.console.language
 m_id = config.console.machine_id
 print(f"Lang = {lang} ；変数型： {type(lang)}")
-print(f"Password = {m_id} ；変数型： {type(lang)}")
+print(f"Machine ID = {m_id} ；変数型： {type(m_id)}")
 ```
 
 コードの出力は、潜在的な型不一致に関する2つの警告となるが、最終的には変数の型と値は影響を受けない。
 
+```
 2024-XX-YY HH:MM:SS.MSS | DEBUG    | settingsclass.settingsclass:_load_settings_init:635 - 以下のファイルから設定を読み込みます。：config.ini
 2024-XX-YY HH:MM:SS.MSS | WARNING  | settingsclass.settingsclass:warn_confusing_types:576 - 設定ファイルの【console】セクション【language】の【3】値を設定されているパラメーターは文字列ですが、intに見えます。
 2024-XX-YY HH:MM:SS.MSS | WARNING  | settingsclass.settingsclass:warn_confusing_types:560 - 設定ファイルの【console】セクション【machine_id】の【False】値を設定されているパラメーターは文字列ですが、boolに見えます。
 Lang = 3 ；変数型： <class 'str'>
-Password = False ；変数型： <class 'str'>
+Machine ID = False ；変数型： <class 'str'>
+```
 
 ## 詳細設定
-特定の使用ケースでは、カスタム暗号化アルゴリズムの使用やRandomFloatの精度の設定など、より高度な設定を使用したい場合がある。[全機能リスト](#full-feature-list)を参照のこと。
+特定の使用ケースでは、カスタム暗号化アルゴリズムの使用やRandomFloatの精度の設定など、より高度な設定を使用したい場合がある。[全機能リスト](#機能一覧と使用例)を参照のこと。
 
 # 存在意義
 
@@ -413,7 +410,7 @@ Password = False ；変数型： <class 'str'>
 ## 本ライブラリー
 
 - 基本概念：
-    - 開発者にとって使いづらい【ini】ファイルでカスタム値を定義した、pythonコード内に定義された設定テンプレート
+    - 設定のテンプレートはpythonコード内で定義し、カスタム値は開発者でなくても扱いやすい【ini】ファイルで設定する
 - 利点：
     - 開発者でもそうでない人でも理解しやすい標準の ini ファイル
     - ユーザー定義のプレフィックスを持つ環境変数のサポート（型キャストも自動的に実行されます）。
@@ -434,7 +431,15 @@ Password = False ；変数型： <class 'str'>
     - 初期設定では、ファイル変更の監視をサポートしていません
     -【ini】ファイルのみをサポート（【JSON】サポートは予定されています）
 
-# Requirements
+# インストール
+
+`pip install settingsclass`
+
+ソースからビルドする場合は、以下を使用してください。
+
+`python -m build`
+
+## Requirements
 Python 3.11+  
 - loguru
 - pycryptodome
@@ -442,14 +447,16 @@ Python 3.11+
 
 # 機能一覧と使用例
 
-## Decorator
+## デコレータ
 
-`@settingsclass(env_prefix: str = "", encryption_key: type[str | Callable[[Any], str] | None] = None, _salt: bytes = None)`
+デコレータで指定した設定は、クラスのすべてのインスタンスで共有されます。インスタンス化の際に指定した設定が優先されます。
+
+`@settingsclass(env_prefix: str | None = "", encryption_key: str | tuple[Callable[[Any], bytes], Callable[[bytes], str]] | None = None, _salt: bytes | None = None)`
 
 ### ユースケース
 1. パラメータなし
 
-クラスの内容は、カレントディレクトリの【congfig.ini】に保存されます。暗号化キーはライブラリのローカルフォルダに保存されます。
+クラスの内容は、カレントディレクトリの【config.ini】に保存されます。暗号化キーはライブラリのローカルフォルダに保存されます。
 
 ```
 @settingsclass
@@ -461,30 +468,33 @@ class Settings:
 2. カスタム設定
 
  
-パラメータを指定しない場合、すべてのインスタンスが同じ【webconfig.ini】ファイルを参照します。**フォルダ `my_folder` が指定された場合、クラスは `my_folder/config.ini` を参照します**  
-暗号化キーを指定すると、特に指定がない限り、そのクラスをインスタンス化すると、以降のすべてのインスタンスでそのキーが使用されます。
-【_salt】パラメータが指定されているため、ファイルを他のマシンにコピーし、「my_encrpytion_key」を使用すると、設定ファイルが正しく読み取られます。
+ファイルパスはコンストラクタに渡します。**フォルダ `my_folder` が指定された場合、クラスは `my_folder/config.ini` を参照します**  
+デコレータで暗号化キーを指定すると、コンストラクタで別のキーを渡さない限り、そのクラスのすべてのインスタンスでそのキーが使用されます。
+【_salt】パラメータが指定されているため、ファイルを他のマシンにコピーし、「my_encryption_key」を使用すると、設定ファイルが正しく読み取られます。
 
 
 ```
-@settingsclass(file_path = "webconfig.ini", encryption_key = "my_encryption_key", _salt=b'\x87\x14~\x88\xf8\xfd\xb3&\xe2\xd4\xd9|@\xfb\x80\x9e')
+@settingsclass(encryption_key="my_encryption_key", _salt=b'\x87\x14~\x88\xf8\xfd\xb3&\xe2\xd4\xd9|@\xfb\x80\x9e')
 class Settings:
     [...]
+
+conf = Settings("webconfig.ini")
 ```
 --- 
-3. メモリー内
+3. メモリー内のみ  
+コンストラクタにパスとして `None` を渡すと、設定はメモリー内のみで保持され、ファイルの読み書きは行われません。
 ```
-@settingsclass(None)
+@settingsclass
 class Settings:
     [...]
+
+conf = Settings(None)
 ```
 
 関数を使うと初期化後でも保存できます。
 
 ```
-conf = Settings(None)
 conf.save_to_file("now_im_ready.ini")
-
 ```
 
 ## 型チェッカー対応（任意）
@@ -508,31 +518,56 @@ conf.save_to_file("backup.ini")  # 型チェッカーに認識される
 
 ## コンストラクタ
 
-### ランダムな文字列
-`RandomString[max_length, min_length=-1, /, random_function: Callable = secrets.token_urlsafe]`
+`Settings(path: str | None = "config.ini", secret_config_path: str | None = "/run/secrets/flask_settings", case_sensitive: bool = False, *, env_prefix: str | None = "", encryption_key = None)`
 
-指定した長さの間のランダムな文字列を生成します。`max`が指定されていない場合、文字列の長さはminで指定された固定長になります。オプションで、`random_function`を指定することもできます。これは`random_function(max_length)[:true_length]`として呼び出されます。また、直接呼び出してテストすることもできます。例えば、`RandomString(5)`は`Ku_nR`を返します。`secrets.token_urlsafe` を使用します。  
+- `path`：読み書きするiniファイル。存在しない場合はデフォルト値で生成されます。`None` の場合はメモリー内のみで保持されます
+- `secret_config_path`：このファイルが存在する場合は、`path` の代わりに使用されます（[Docker secrets](https://docs.docker.com/engine/swarm/secrets/)を参照）。`None` で無効にできます
+- `case_sensitive`：True の場合、セクション名と変数名の大文字小文字を区別します
+- `env_prefix` と `encryption_key` はデコレータで設定した値より優先されます。`_salt` はデコレータでのみ設定できます
+
+## 環境変数
+
+iniファイルの読み込み後、各値は `<PREFIX>_<SECTION>_<VARIABLE>`（大文字）という名前の環境変数で上書きできます。PREFIX は `env_prefix` です。デフォルトの `env_prefix=""` の場合は `<SECTION>_<VARIABLE>` のみです（例：`CONSOLE_LANGUAGE`）。`env_prefix=None` で無効にできます。  
+値はヒントされた型に変換され、リストとタプルは JSON として解析されます（例：`["a", "b"]`）。読み込み時に ini ファイルへは書き込まれませんが、`save_to_file` はこれらを含む現在の値を保存します。
+
+```
+@settingsclass(env_prefix="APP")
+class Settings:
+    class console:
+        language: str = "en"
+
+# 環境変数 APP_CONSOLE_LANGUAGE=ja が設定されている場合
+conf = Settings()
+print(conf.console.language)  # ja
+```
+
+## 変数型
+
+### ランダムな文字列
+`RandomString[min_length, max_length=-1, *, random_function: Callable = secrets.token_urlsafe]`
+
+指定した長さの間のランダムな文字列を生成します。`max_length`が指定されていない場合、文字列の長さは`min_length`の固定長になります。オプションで、`random_function`を指定することもできます。これは`random_function(max_length)[:true_length]`として呼び出されます。また、直接呼び出してテストすることもできます。例えば、`RandomString(5)`は`Ku_nR`を返します。`secrets.token_urlsafe` を使用します。  
 **ユーザーによって指定されたデフォルト値は無視されます。**
 
 
 ### RandomInt[min_value, max_value, /, random_function] / RandomFloat[~]
 `RandomInt[min_value: int, max_value: int, random_function: Callable = random.randint]`  
-`RandomFloat[min_value: float, max_value: float, random_function: Callable = random.random]` 
+`RandomFloat[min_value: float, max_value: float, precision: int = 3, random_function: Callable = random.random]` 
 
-2つの限界値の間にある数値を生成します。オプションで、2つの限界値をパラメータとして受け取る関数を指定することができます  
+2つの限界値の間にある数値を生成します。オプションで、2つの限界値をパラメータとして受け取る関数を指定することができます。浮動小数点数の場合は精度も指定できます。  
 **ユーザーによって指定されたデフォルト値は無視されます**
 
 ### Hidden[type]
 
 指定されたパラメータは、指定された場合、ファイルには書き込まれませんが、環境変数と指定したファイルの両方から読み込まれます。  
 
-### Encryted[type]
+### Encrypted[type]
 
 暗号化は AES128 に基づいています（256 は処理速度が遅く、実用的な利点はありません）。 
 デフォルトでは、キーとソルトはランダムに生成され、ライブラリディレクトリ内に保存されます。 IV は暗号化文字列のフィールド内に含まれます。 
-これは、オブジェクトごとに `encryption_key` を指定するか、クラス定義レベルで `common_encryption_key` を指定することで上書きできます。
-これは文字列またはそのまま呼び出される関数ハンドルです。 
-ソルトは環境ごとに生成され保存されるため、ある環境から別の環境に暗号キーをコピー＆ペーストできないようにし、暗号キーの保護にさらなる層を追加します。ディレクトリがユーザー書き込み可能でない環境では、ソルトをバイナリ文字列形式で指定することもできます。クラスごとの指定は想定される使用例ではないため、サポートされていません。   
+これは、デコレータ（クラスごと）またはコンストラクタ（オブジェクトごと）で `encryption_key` を指定することで上書きできます。
+キーは文字列、またはデフォルトの暗号化方式を置き換える `(encrypt, decrypt)` 関数のタプルです。`encrypt` は値を受け取り `bytes` を返し、`decrypt` はその `bytes` を受け取り `str` を返します。 
+ソルトは環境ごとに生成され保存されるため、ある環境から別の環境に暗号キーをコピー＆ペーストできないようにし、暗号キーの保護にさらなる層を追加します。ディレクトリがユーザー書き込み可能でない環境では、デコレータの `_salt` 引数でソルトをバイナリ文字列形式で指定することもできます。オブジェクトごとの指定は想定される使用例ではないため、サポートされていません。   
 完全な指定の例は以下の通りです。 
 
 
@@ -542,7 +577,7 @@ class Settings:
     class program:
         password: Encrypted[str] = "will be encrypted on save"
     
-s = Settings(encryption_key="abcdefgh") # this takes percendence over the encryption_key defined in the decorator
+s = Settings(encryption_key="abcdefgh") # this takes precedence over the encryption_key defined in the decorator
 ```  
 
 文字列に変換できるあらゆる型をサポートします
@@ -550,16 +585,16 @@ s = Settings(encryption_key="abcdefgh") # this takes percendence over the encryp
 ## 便利な関数
 
 ### 【ini】ファイルからの読み込み
- `update_from(self, config: configparser.ConfigParser, secrets_only: False) -> list[str]`   
+ `update_from(self, config: configparser.ConfigParser, encrypted_only: bool = False) -> list[str]`   
 
-configparser ハンドラは、大文字小文字の設定などを含め、ユーザー側で用意する必要があります。暗号化されるべきであったのに暗号化されなかったフィールドの一覧を返します。自動暗号化にはコンストラクタを使用してください。
+configparser ハンドラは、大文字小文字の設定などを含め、ユーザー側で用意する必要があります。暗号化されるべきであったのに暗号化されなかったフィールドの一覧を返します。自動暗号化にはコンストラクタを使用してください。`encrypted_only=True` はまだ実装されていません。
 
 ### iniファイルへの保存
-`save_to_file(self, path)`  
+`save_to_file(self, path=None)`  
 
 
  
-指定したパスにコンテンツを保存します（暗号化を含む）。
+指定したパスにコンテンツを保存します（暗号化を含む）。パスが None の場合は、読み込み元のファイルに保存します。
 
 # 完全な例
 
@@ -569,12 +604,14 @@ print文を使用した詳細な使用例シナリオは、[demo_ja.py](demo_ja.
 
 
 ```
-[login]
-min_passw_len = 12
-backdoor_pint = ?ENCbef0e2e3a58995f50af7b2807a49779ca43cdfc59521a7528222fb4897db0d75
+[console]
+language = ja
+machine_id = b8_Q
+backdoor_password = ?ENC5d51bb10d835ff680ce50c99dc512678cb6cb3525d18129a56c7b417c6847339790dbe0cd264ca201a7b82a0dbb4c130
+debug_pin = ?ENC7cac31ac5bb2a5a6078d770b17a5a6728766adafa43409a2917b0c09903fcce5
+maximum_message_per_second = 5
 
 [agent]
-api = google.com/api
-seed = ?ENC7d2ee77afc4d0c51971adf2fdc853e437a78361a6ba55cfcb20d63d5a6599186
-temperature = 0.10883235127062094
+api_key = 
+seed = 8881.079
 ```

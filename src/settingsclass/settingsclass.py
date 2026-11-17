@@ -100,7 +100,7 @@ class SettingsTypeHints:
                 lang = "ja"
                 log_level: str = "debug"
                 colored_console_output: Hidden[bool] = True
-                \"\"\"Disable if the console prints the color code characters such as `^[[31mError!^[[0mZ`\"\"\"
+                \"\"\"Disable if the console prints the color code characters such as `^[[31mError!^[[0m`\"\"\"
                 machine_id: RandomString[5] = ""
                 auto_update_model: bool = False
                 rfph: RandomFloat[0, 2**16] = 1.2
@@ -862,6 +862,9 @@ def _load_settings_init(
 
     # メモリーのみの設定
     if not path:
+        # save_to_file(path) requires these to exist
+        self._file_path = None
+        self._config = configparser.ConfigParser(allow_no_value=True)
         return
 
     if secret_config_path and os.path.exists(secret_config_path):
@@ -1279,8 +1282,8 @@ if __name__ == "__main__":  # pragma: no cover
             lang = "ja"
             log_level: str = "debug"
             colored_console_output: Hidden[bool] = True
-            """Disable if the console prints the color code characters such as `^[[31mError!^[[0mZ`
-            コンソールが `^[[31mError!^[[0mZ` のようなカラーコード文字を出力する場合は、これをFalseに設定してください"""
+            """Disable if the console prints the color code characters such as `^[[31mError!^[[0m`
+            コンソールが `^[[31mError!^[[0m` のようなカラーコード文字を出力する場合は、これをFalseに設定してください"""
             machine_id: RandomString[5] = ""
             auto_update_model: bool = False
             rfph: RandomFloat[0, 2**16] = 1.2

@@ -7,6 +7,7 @@
 # %% Import
 from settingsclass import (
     settingsclass,
+    SettingsTypeHints,
     Hidden,
     Encrypted,
     RandomFloat,
@@ -31,7 +32,7 @@ if os.path.exists("config.ini"):
 
 
 @settingsclass
-class WebConfig:
+class WebConfig(SettingsTypeHints):
     class console:
         # We would like to support multiple languages.
         # This uses language codes, as such it will be stored as a string
