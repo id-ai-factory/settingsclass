@@ -31,6 +31,7 @@ from src.settingsclass.settingsclass import (
     RandomFloat,
     RandomInt,
     RandomString,
+    SettingsTypeHints,
     _decrypt_field,
     _encrypt_field,
     _load_key,
@@ -991,6 +992,30 @@ def test_environmental_variables_logged(caplog):  # noqa: F811
 
     assert conf.general.secret == "bar"
     assert tr("using_key_var_from_env_1", ["LOGTEST_GENERAL_SECRET"]) in caplog.text
+
+
+def test_settings_types_inheritance():
+    """Inheriting from SettingsTypeHints behaves the same as not inheriting"""
+
+    @settingsclass
+    class SettingsWithBase(SettingsTypeHints):
+        class general:
+            name: str = "foo"
+            count: int = 3
+
+    path = join(PARENT_OUT, RandomString(8))
+    with silent_output():
+        conf = SettingsWithBase(path, env_prefix=None)
+    assert conf.general.name == "foo"
+    assert conf.general.count == 3
+    assert exists(path)
+    assert repr(conf).startswith("SettingsClass [SettingsWithBase]")
+
+    conf.general.count = 5
+    conf.save_to_file()
+    with silent_output():
+        reloaded = SettingsWithBase(path, env_prefix=None)
+    assert reloaded.general.count == 5
 
 
 # %%

@@ -30,6 +30,7 @@ class WebConfig:
         debug_pin: Encrypted[RandomInt[1000, 9999]] = 0
         maxiumum_message_per_second: int = 5
         colored_output: Hidden[bool] = True
+        """Disable if the console prints the color code characters such as `^[[31mError!^[[0mZ`"""
 
     class agent:
         api_key: Encrypted[str] = ""
@@ -57,7 +58,8 @@ print(f'{dbp} w/ {type(dbp)}) # prints a 4 digit int e.g. "4521 w/ <class 'int'>
 
 
 # Hidden[type] variable also generate values of their encapsulated types,
-# and are not saved/read from  the config file, unless already present
+# and are not saved/read from  the config file, unless already present.
+# The string directly below it is treated as a docstring and is shown when hovered over the member
 co = config.console.colored_output
 print(f'{co} w/ {type(co)}) # prints "True w/ <class 'bool'>"
 
@@ -465,6 +467,25 @@ conf = Settings(None)
 conf.save_to_file("now_im_ready.ini")
 
 ```
+
+## Type checker support (optional)
+
+The decorator adds its members (e.g. `save_to_file`, `update_from` and the constructor parameters) at runtime, which static type checkers such as Pylance/Pyright or mypy cannot see. As a result, the IDE may not offer auto-completion for them, or may even report them as errors.  
+To make them visible, inherit from `SettingsTypeHints`:
+
+```
+from settingsclass import settingsclass, SettingsTypeHints
+
+@settingsclass
+class Settings(SettingsTypeHints):
+    class program:
+        lang: str = "en"
+
+conf = Settings("config.ini", env_prefix="APP")  # parameters are now hinted
+conf.save_to_file("backup.ini")  # recognized by the type checker
+```
+
+This import is completely optional: `SettingsTypeHints` only contains type declarations and has no effect at runtime; the decorated class behaves identically with or without it.
 
 ## Constructor
 

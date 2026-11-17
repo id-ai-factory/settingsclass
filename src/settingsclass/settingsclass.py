@@ -64,6 +64,90 @@ class MissingSettingsError(RuntimeError):
     """The settings has not been given an initialization value"""
 
 
+class SettingsTypeHints:
+    """A class for storing settings with optional environmental fetch and disk sync.
+
+    Args:
+        path (str | None, optional): The ini file to read from and write to.
+            If the file does not exist, it is generated with the default values.
+            If a folder is specified, <folder>/config.ini is used.
+            If None, the settings are kept in memory only (see save_to_file).
+            Defaults to "config.ini".
+        secret_config_path (str | None, optional): If this file exists, it is used instead of path.
+            See https://docs.docker.com/engine/swarm/secrets/
+            Set to None to disable. Defaults to "/run/secrets/flask_settings".
+        case_sensitive (bool, optional): If True, section and variable names are case sensitive.
+            Defaults to False.
+        env_prefix (str | None, optional): prefix to be attached when checking env vars.
+            e.g. if set to foo, in case of config.ui.color the checked name is FOO_UI_COLOR
+            No check is performed if set to None.
+            If "", only the section and var names are used, e.g config.ui.color -> UI_COLOR
+            Defaults to the value set in the decorator ("" if not set).
+        encryption_key (str | tuple[Callable[[Any], bytes], Callable[[bytes], str]] | None, optional):
+            Key used to encrypt values. Takes priority over the key set in the decorator.
+            If you do not wish to use the default encryption method,
+            you can also define a tuple of encryption and decryption functions.
+            Defaults to None, in which case the decorator key or a key file generated
+            on the machine is used.
+
+    Raises:
+        IsADirectoryError: If path is a folder that contains a folder named config.ini
+
+    Example:
+        @settingsclass  # (encryption_key="123456789")
+        class ServerSettings(SettingsTypeHints):
+            class program:
+                lang = "ja"
+                log_level: str = "debug"
+                colored_console_output: Hidden[bool] = True
+                \"\"\"Disable if the console prints the color code characters such as `^[[31mError!^[[0mZ`\"\"\"
+                machine_id: RandomString[5] = ""
+                auto_update_model: bool = False
+                rfph: RandomFloat[0, 2**16] = 1.2
+                seed: Encrypted[RandomFloat[0, 2**16]] = 1.2
+                api_id: RandomInt[1000, 9999] = 0
+
+            class llm:
+                api_key: Encrypted[str] = ""
+                backup_pin: Encrypted[int] = -1
+                model: str = "35t"
+                fallback_models = ["4.1", "4.0", 5.0]
+                other_settings: tuple = (1, 2, "x")
+                temperature: Hidden[float] = 5
+                timeout = 300
+
+        conf = ServerSettings("cx.ini")
+    """
+
+    if TYPE_CHECKING:
+
+        def __init__(
+            self,
+            path: str | None = "config.ini",
+            secret_config_path: str | None = "/run/secrets/flask_settings",
+            case_sensitive: bool = False,
+            *,
+            env_prefix: str | None = "",
+            encryption_key: _EncryptionKey = None,
+        ) -> None: ...
+
+        def update_config(self, config: configparser.ConfigParser) -> None: ...
+
+        def update_from(
+            self, config: configparser.ConfigParser, encrypted_only: bool = False
+        ) -> list[str]: ...
+
+        def update_from_env(self) -> None: ...
+
+        def save_to_file(self, path: str | None = None) -> None: ...
+
+        @staticmethod
+        def available_languages() -> tuple[str, ...]: ...
+
+        @staticmethod
+        def set_language(lang: str) -> None: ...
+
+
 def hash_value(value: str):
     hash = hashlib.sha256()
     hash.update(value.encode("utf-8"))
@@ -754,7 +838,7 @@ def warn_confusing_types(value: Any, section_name: str, parameter_name: str) -> 
 
 def _load_settings_init(
     self,
-    path: str = "config.ini",
+    path: str | None = "config.ini",
     secret_config_path="/run/secrets/flask_settings",
     case_sensitive: bool = False,
 ) -> None:
@@ -1033,7 +1117,7 @@ def _add_settings_layer(
         common_encryption_key (str | tuple[Callable[[Any], bytes], Callable[[bytes], str]] | None, optional):
             Key used to encrypt values. If no key is set when using the class constructor,
             this value is used. If you do not wish to use the default encryption method,
-            you can also defy a tuple of encryption and decryption functions.
+            you can also define a tuple of encryption and decryption functions.
             Defaults to None.
         salt (bytes, optional): The salt that is used in combination with the key.
             By default, a random file is generated on the machine, but can be set manually.
@@ -1134,6 +1218,7 @@ def settingsclass(
     _salt: bytes | None = None,
 ):
     """Dynamically binds the necessary functions after applying the @dataclass decorator.
+    To see typehints, extend the SettingsTypeHints class, together with applying the decorator.
 
     Args:
         env_prefix (str, optional): prefix to be attached when checking env vars.
@@ -1142,9 +1227,9 @@ def settingsclass(
             Defaults to "", in which case only the section and var names are used,
             e.g config.ui.color -> UI_COLOR
         encryption_key (str | tuple[Callable[[Any], bytes], Callable[[bytes], str]] | None, optional):
-            Key used to encrypt values. Takes priority over decorator setting
-            this value is used.If you do not wish to use the default encryption method,
-            you can also defy a tuple of encryption and decryption functions.
+            Key used to encrypt values. Used when no key is passed to the class constructor.
+            If you do not wish to use the default encryption method,
+            you can also define a tuple of encryption and decryption functions.
             Defaults to None.
         _salt (bytes, optional): The salt that is used in combination with the key.
             By default, a random file is generated on the machine, but can be set manually.
@@ -1183,16 +1268,19 @@ def settingsclass(
 if __name__ == "__main__":  # pragma: no cover
     # Only for quick testing during development
     @settingsclass  # (encryption_key="123456789")
-    class _Settings:
+    class ServerSettings(SettingsTypeHints):
         """設定ファイルを初期化するときに使われる値。ロードするときにタイプヒントを確認する。
-        RandomString・RandomInt・RandomFloatの初期値値は無視される"""
+        RandomString・RandomInt・RandomFloatの初期値値は無視される
 
-        # file_path = '<NOT_SET>'
+        Values used when initializing the configuration file. Type hints are checked during loading.
+        The default values for RandomString, RandomInt, and RandomFloat are ignored"""
 
         class program:
             lang = "ja"
             log_level: str = "debug"
-            colored_console_output: Hidden[bool] = True  # ログをカラー表示するか
+            colored_console_output: Hidden[bool] = True
+            """Disable if the console prints the color code characters such as `^[[31mError!^[[0mZ`
+            コンソールが `^[[31mError!^[[0mZ` のようなカラーコード文字を出力する場合は、これをFalseに設定してください"""
             machine_id: RandomString[5] = ""
             auto_update_model: bool = False
             rfph: RandomFloat[0, 2**16] = 1.2
@@ -1208,8 +1296,16 @@ if __name__ == "__main__":  # pragma: no cover
             temperature: Hidden[float] = 5
             timeout = 300
 
-    conf = _Settings("cx.ini")
+    conf = ServerSettings("cx.ini")
+
+    ## カーサを合わせると上記のヒントが表示されます
+    ## Hovering over the variable will show the docstring written above
+    # conf.program.colored_console_output
+
+    ## ディスク同期のファイルパスを指定できます
+    ## A location can be also set for the disk sync
     # conf = _Settings(f"conf/{RandomString(5)}.ini")
     print(conf)
+
 
 # %%

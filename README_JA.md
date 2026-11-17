@@ -28,6 +28,7 @@ class WebConfig:
         debug_pin: Encrypted[RandomInt[1000, 9999]] = 0
         maxiumum_message_per_second: int = 5
         colored_output: Hidden[bool] = True
+        """コンソールが `^[[31mError!^[[0mZ` のようなカラーコード文字を出力する場合は、これをFalseに設定してください"""
 
     class agent:
         api_key: Encrypted[str] = ""
@@ -55,6 +56,7 @@ print(f'{dbp} w/ {type(dbp)}) # 4桁の整数を表示。例：「4521 w/ <class
 
 # 隠された[型]変数も、カプセル化された型の値を生成し、
 # すでに存在していない限り、設定ファイルに保存されたり読み込まれたりすることはない。
+# 直下に書いている文字列はdocstringと扱い、カーさを合わせると表示される
 co = config.console.colored_output
 print(f'{co} w/ {type(co)}) # プリント結果： "True w/ <class 'bool'>"
 
@@ -484,6 +486,25 @@ conf = Settings(None)
 conf.save_to_file("now_im_ready.ini")
 
 ```
+
+## 型チェッカー対応（任意）
+
+デコレータが追加するメンバー（`save_to_file`、`update_from`、コンストラクタの引数など）は実行時に追加されるため、Pylance/Pyright や mypy などの静的型チェッカーからは見えません。そのため、IDE の自動補完に表示されなかったり、エラーとして表示されたりする場合があります。  
+これらを型チェッカーに認識させるには、`SettingsTypeHints` を継承します。
+
+```
+from settingsclass import settingsclass, SettingsTypeHints
+
+@settingsclass
+class Settings(SettingsTypeHints):
+    class program:
+        lang: str = "ja"
+
+conf = Settings("config.ini", env_prefix="APP")  # 引数のヒントが表示される
+conf.save_to_file("backup.ini")  # 型チェッカーに認識される
+```
+
+このインポートは完全に任意です： `SettingsTypeHints` は型の宣言のみを含み、実行時には何も影響しません。継承の有無にかかわらず、デコレートされたクラスの動作は同じです。
 
 ## コンストラクタ
 

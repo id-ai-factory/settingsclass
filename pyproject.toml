@@ -9,7 +9,7 @@ authors = [
 ]
 description = "A class decorator for easily storing setting values, with automatic sync to disk"
 keywords = ["settings", "config", "configuration", "ini", "configparser", "dataclass"]
-version = "0.1.6.dev0"
+version = "0.2.0"
 license = {text = "MIT Licence"}
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,3 +26,9 @@ Homepage = "https://github.com/id-ai-labo/settingsclass"
 
 [tool.setuptools.package-data]
 settingsclass = ["loc/*.csv", "py.typed"]
+
+[tool.coverage.report]
+# Blocks that only exist for static type checkers and never run
+exclude_also = [
+    "if TYPE_CHECKING:",
+]
